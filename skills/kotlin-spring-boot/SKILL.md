@@ -212,7 +212,7 @@ val updated = environment.copy(
 
 ```kotlin
 @ConfigurationProperties(prefix = "your-project")
-data class ChatkeepProperties(
+data class AppProperties(
     val bot: BotProperties,
     val backend: BackendProperties
 ) {

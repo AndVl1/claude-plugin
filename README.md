@@ -1,6 +1,6 @@
 # Dream Team Plugin for Claude Code
 
-A comprehensive multi-agent development system with 12 specialized agents, commands, skills, and safety hooks.
+A comprehensive fullstack development plugin with 12+ specialized agents for building modern applications: Kotlin/Spring Boot backends, React web frontends, KMP mobile apps, Telegram bots, DevOps pipelines, and AI integration.
 
 ## Installation
 

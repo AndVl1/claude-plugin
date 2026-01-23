@@ -92,7 +92,7 @@ javascript_tool("localStorage.getItem('key')")
 | Unauthorized | Status 401, no data exposed |
 | Validation error | Status 400, field errors |
 
-### Chatkeep API Endpoints
+### API Endpoints (Example)
 ```
 GET    /api/v1/miniapp/chats              - List user's chats
 GET    /api/v1/miniapp/chats/{id}         - Get chat details

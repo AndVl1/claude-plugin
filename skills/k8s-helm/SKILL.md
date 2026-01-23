@@ -30,7 +30,7 @@ helm/your-project/
 ```yaml
 apiVersion: v2
 name: your-project
-description: Chatkeep Telegram Bot Service
+description: Application Service
 type: application
 version: 1.0.0
 appVersion: "1.0.0"

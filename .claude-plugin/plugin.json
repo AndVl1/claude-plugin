@@ -1,6 +1,6 @@
 {
   "name": "dream-team",
-  "description": "Multi-agent development system with 12 specialized agents, commands, skills, and safety hooks for Claude Code",
+  "description": "Fullstack development plugin with 12+ specialized agents for Kotlin/Spring, React, KMP Mobile, Telegram Bots, DevOps, and AI integration",
   "version": "1.0.0",
   "author": {
     "name": "AndVl1"

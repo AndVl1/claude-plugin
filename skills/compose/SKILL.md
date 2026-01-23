@@ -84,14 +84,14 @@ src/commonMain/composeResources/
 ```xml
 <!-- values/strings.xml -->
 <resources>
-    <string name="app_name">ChatKeep Admin</string>
+    <string name="app_name">My Application</string>
     <string name="welcome_message">Welcome, %1$s!</string>
     <string name="items_count">%1$d items</string>
 </resources>
 
 <!-- values-ru/strings.xml -->
 <resources>
-    <string name="app_name">ChatKeep Админ</string>
+    <string name="app_name">Мое Приложение</string>
     <string name="welcome_message">Добро пожаловать, %1$s!</string>
     <string name="items_count">%1$d элементов</string>
 </resources>
@@ -553,7 +553,7 @@ fun main() = application {
 
     Window(
         onCloseRequest = ::exitApplication,
-        title = "ChatKeep Admin"
+        title = "My Application"
     ) {
         LifecycleController(lifecycle)
 

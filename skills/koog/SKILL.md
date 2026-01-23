@@ -738,12 +738,12 @@ val moderationAgent = AIAgent(
 )
 ```
 
-### Chatkeep-Specific Moderation
+### Application-Specific Moderation
 
 ```kotlin
-// Service for Chatkeep content moderation
+// Service for application content moderation
 @Service
-class ChatkeepModerationService(
+class AppModerationService(
     private val executor: SingleLLMPromptExecutor,
     private val userService: UserService
 ) {
@@ -759,7 +759,7 @@ class ChatkeepModerationService(
 
         val prompt = prompt {
             system("""
-                Content moderation for Chatkeep Telegram bot.
+                Content moderation for Telegram bot.
 
                 User context:
                 - New user (< 7 days): $isNewUser

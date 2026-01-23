@@ -662,7 +662,7 @@ fun main() = application {
         )
     }
 
-    Window(onCloseRequest = ::exitApplication, title = "ChatKeep Admin") {
+    Window(onCloseRequest = ::exitApplication, title = "My Application") {
         LifecycleController(lifecycle)
 
         AppTheme {

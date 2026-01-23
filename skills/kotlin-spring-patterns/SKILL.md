@@ -1,9 +1,9 @@
 ---
 name: kotlin-patterns
-description: Kotlin/Spring Boot patterns for Chatkeep service - use when implementing backend features, writing services, repositories, or controllers
+description: Kotlin/Spring Boot patterns for backend services - use when implementing backend features, writing services, repositories, or controllers
 ---
 
-# Kotlin Patterns for Chatkeep
+# Kotlin Patterns for Backend Services
 
 ## Entity Pattern
 
