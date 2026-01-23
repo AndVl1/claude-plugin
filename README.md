@@ -13,7 +13,7 @@ A comprehensive fullstack development plugin with 12+ specialized agents for bui
 
 2. Install the plugin:
 ```
-/plugin install dream-team@fullstack-prod-team
+/plugin install dream-team@andvl1-plugins
 ```
 
 ### Option 2: Install directly from GitHub
@@ -35,7 +35,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 ```json
 {
   "extraKnownMarketplaces": {
-    "fullstack-prod-team": {
+    "andvl1-plugins": {
       "source": {
         "source": "github",
         "repo": "AndVl1/claude-plugin"
@@ -43,7 +43,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
     }
   },
   "enabledPlugins": {
-    "dream-team@fullstack-prod-team": true
+    "dream-team@andvl1-plugins": true
   }
 }
 ```
