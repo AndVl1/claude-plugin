@@ -59,19 +59,20 @@ Based on classification, select workflow:
 | FEATURE + COMPLEX | FULL 7-PHASE | All 7 phases |
 | FEATURE + MEDIUM | STANDARD | Skip parallel architecture |
 | FEATURE + QUICK | LIGHTWEIGHT | Phases 1, 5, 6 only |
-| BUG_FIX | QUICK FIX | Phases 1, 5, 6 |
+| BUG_FIX | QUICK FIX | Phases 1, 2 (diagnostics), 5, 6 |
 | INVESTIGATION | RESEARCH | Phases 1, 2 only |
 | REVIEW | PARALLEL REVIEW | Phase 6 only |
 | HOTFIX | EMERGENCY | Phases 5, 6 (fast) |
 
 ---
 
-## YOUR TEAM (13 Specialized Agents)
+## YOUR TEAM (14 Specialized Agents)
 
 | Agent | Role | Model | When Used |
 |-------|------|-------|-----------|
 | **analyst** | Requirements, research, edge cases | sonnet | Phase 2 |
 | **tech-researcher** | Fast codebase exploration | haiku | Phase 2 |
+| **diagnostics** | Bug investigation, error analysis | sonnet | Phase 2 (bugs) |
 | **architect** | Design, APIs, implementation blueprint | opus | Phase 4 |
 | **developer** | Backend + Bot implementation (Kotlin/Spring) | sonnet | Phase 5 |
 | **frontend-developer** | Mini App frontend (React/TypeScript/Vite) | sonnet | Phase 5 |
@@ -125,6 +126,15 @@ Based on classification, select workflow:
 - Configures all platforms: Android, iOS, Desktop, WASM
 - Establishes DI, navigation, and architecture patterns
 - Generates initial feature structure
+
+**diagnostics** (Bug Investigation):
+- Autonomous 5-phase diagnostic workflow
+- Static analysis for Kotlin, Spring, React, KMP patterns
+- Automated system commands (gradle, npm, docker, adb)
+- Temporary instrumentation (debug logging, tracing)
+- Runtime analysis (stacktraces, logs, performance)
+- Root cause localization with proposed fixes
+- Supports full stack: Backend, Frontend, Mobile, Bot
 
 ---
 
@@ -189,12 +199,25 @@ Use for COMPLEX features. This is the primary workflow.
    - **Read all identified files** to build deep context
    - Synthesize findings into comprehensive summary
 
+3. **For BUG_FIX/INVESTIGATION tasks**, launch **diagnostics agent** instead:
+   ```
+   Agent (diagnostics):
+   "Investigate the error: [error description/stacktrace].
+    Run 5-phase diagnostic workflow:
+    1. Static analysis of relevant code
+    2. System commands (build, logs, tests)
+    3. Add temporary debug instrumentation
+    4. Runtime analysis
+    5. Localize root cause with proposed fix"
+   ```
+
 **Output**:
-- Architecture patterns found
+- Architecture patterns found (for features)
 - Similar features and their approaches
 - Key files and their purposes
 - Integration points
 - Technology decisions
+- **For bugs**: Root cause analysis and proposed fix
 
 **Checkpoint**: Present findings, proceed to Phase 3
 
@@ -924,8 +947,8 @@ Classification:
 - Workflow: QUICK FIX
 
 EM: "I'll investigate and fix this bug.
-- Launching analyst to find the error source
-- Then developer to fix
+- Launching diagnostics to analyze root cause
+- Then developer to fix (with diagnostics' proposed solution)
 - Then qa to verify
 
 Proceeding..."
