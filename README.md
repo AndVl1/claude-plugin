@@ -142,6 +142,13 @@ The plugin uses `.claude/team-state.md` to track progress across agent sessions.
 - Claude Code CLI v1.0.33+
 - Optional MCP servers: deepwiki, context7, claude-in-chrome, mobile
 
+## References
+
+This plugin was inspired by and built upon:
+
+- [Anthropic's feature-dev plugin](https://github.com/anthropics/claude-code/blob/main/plugins/feature-dev/commands/feature-dev.md) - Official Claude Code plugin patterns
+- [Dream Team by ashchupliak](https://github.com/ashchupliak/dream-team) - Multi-agent development workflow
+
 ## License
 
 MIT
