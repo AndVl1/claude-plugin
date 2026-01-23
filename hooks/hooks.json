@@ -1,0 +1,162 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🚀 Dream Team v2.2 Ready | 12 agents | State sync enabled'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Modified: $CLAUDE_FILE_PATH\" >> .claude/changes.log 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .claude/team-state.md with phase results before proceeding.'; fi; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -qE '\\.env|\\.secret|credentials'; then echo 'BLOCK: Sensitive file' && exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .claude/team-state.md found. Create state file before launching agents!'; elif [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$BRANCH\" = \"main\" ] || [ \"$BRANCH\" = \"production\" ]; then echo '🚫 BLOCK: Direct commits to main/production are not allowed. Create a feature branch first (feat/*, fix/*, etc.)'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git push:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if echo \"$CLAUDE_COMMAND\" | grep -qE 'origin (main|production)'; then echo '🚫 BLOCK: Direct push to main/production is not allowed. Use Pull Requests via feature branches.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(gh pr merge:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '🚫 BLOCK: PR merging should be done manually by the user. Do not use gh pr merge.'; exit 2",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(gh push:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '(main|production)'; then echo '🚫 BLOCK: Pushing to main/production via gh is not allowed. Use Pull Requests.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git merge:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$BRANCH\" = \"main\" ] || [ \"$BRANCH\" = \"production\" ]; then echo '🚫 BLOCK: Manual merging into main/production is not allowed. Use Pull Requests instead.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__claude-in-chrome__*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Chrome tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Chrome tools, and report findings'; echo '3. Never use Chrome tools directly from main agent'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__mobile__*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Mobile tools, and report findings'; echo '3. Never use Mobile tools directly from main agent'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '⚠️ Context compacting. State preserved in .claude/team-state.md' && cat .claude/team-state.md 2>/dev/null || echo 'No active task'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then echo '📋 Final state:' && grep -E '^- \\[' \"$STATE_FILE\" | head -10; if grep -q '\\[ \\] Phase' \"$STATE_FILE\"; then echo '⚠️ INCOMPLETE PHASES: There are incomplete phases in team-state.md!'; fi; fi; echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .claude/sessions.log 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '📝 Subagent finished. Update .claude/team-state.md with phase results!'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

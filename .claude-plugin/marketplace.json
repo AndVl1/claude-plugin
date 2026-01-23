@@ -1,0 +1,23 @@
+{
+  "name": "andvl1-plugins",
+  "owner": {
+    "name": "AndVl1"
+  },
+  "metadata": {
+    "description": "Plugin marketplace by AndVl1 with multi-agent development tools for Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "dream-team",
+      "source": ".",
+      "description": "Multi-agent development system with 12 specialized agents, commands, skills, and safety hooks",
+      "version": "1.0.0",
+      "author": {
+        "name": "AndVl1"
+      },
+      "category": "development",
+      "tags": ["agents", "multi-agent", "team", "kotlin", "spring", "react", "kmp"]
+    }
+  ]
+}

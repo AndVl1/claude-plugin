@@ -1,0 +1,23 @@
+{
+  "name": "dream-team",
+  "description": "Multi-agent development system with 12 specialized agents, commands, skills, and safety hooks for Claude Code",
+  "version": "1.0.0",
+  "author": {
+    "name": "AndVl1"
+  },
+  "homepage": "https://github.com/AndVl1/claude-plugin",
+  "repository": "https://github.com/AndVl1/claude-plugin",
+  "license": "MIT",
+  "keywords": [
+    "agents",
+    "multi-agent",
+    "team",
+    "kotlin",
+    "spring",
+    "react",
+    "kmp",
+    "devops",
+    "claude-code",
+    "plugin"
+  ]
+}
