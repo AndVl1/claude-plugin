@@ -13,7 +13,7 @@ A comprehensive fullstack development plugin with 12+ specialized agents for bui
 
 2. Install the plugin:
 ```
-/plugin install dream-team@andvl1-plugins
+/plugin install fullstack-team@andvl1-plugins
 ```
 
 ### Option 2: Install directly from GitHub
@@ -43,7 +43,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
     }
   },
   "enabledPlugins": {
-    "dream-team@andvl1-plugins": true
+    "fullstack-team@andvl1-plugins": true
   }
 }
 ```
@@ -70,11 +70,11 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 ### Commands (User-invokable Skills)
 | Command | Description |
 |---------|-------------|
-| `/dream-team:team` | 7-phase feature development with parallel agents |
-| `/dream-team:solo` | Incremental development workflow |
-| `/dream-team:interview` | Deep interview to clarify ideas before implementation |
-| `/dream-team:init-mobile` | Create KMP Compose Multiplatform project |
-| `/dream-team:update-readme` | Update project README |
+| `/fullstack-team:team` | 7-phase feature development with parallel agents |
+| `/fullstack-team:solo` | Incremental development workflow |
+| `/fullstack-team:interview` | Deep interview to clarify ideas before implementation |
+| `/fullstack-team:init-mobile` | Create KMP Compose Multiplatform project |
+| `/fullstack-team:update-readme` | Update project README |
 
 ### 20+ Agent Skills
 Domain knowledge for: Kotlin, Spring Boot, React, KMP, Compose, Decompose, Ktor, JOOQ, OpenTelemetry, and more.
@@ -105,17 +105,17 @@ claude-plugin/
 
 ### Team Workflow
 ```
-/dream-team:team implement user authentication feature
+/fullstack-team:team implement user authentication feature
 ```
 
 ### Solo Workflow
 ```
-/dream-team:solo add pagination to the API
+/fullstack-team:solo add pagination to the API
 ```
 
 ### Interview
 ```
-/dream-team:interview mobile app for recipe sharing
+/fullstack-team:interview mobile app for recipe sharing
 ```
 
 ## State Management
