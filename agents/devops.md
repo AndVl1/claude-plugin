@@ -5,7 +5,7 @@ description: DevOps engineer - handles Docker, Kubernetes, Helm, CI/CD, and depl
 color: white
 tools: Read, Write, Edit, Glob, Grep, Bash
 permissionMode: acceptEdits
-skills: k8s-helm, opentelemetry
+skills: opentelemetry
 ---
 
 # DevOps Engineer

@@ -201,7 +201,7 @@ I can invoke specialized knowledge on demand:
 **Backend**: kotlin-spring-boot, kotlin-spring-patterns, jooq-patterns, api-design
 **Telegram Bot**: ktgbotapi, ktgbotapi-patterns, ktor-client
 **AI Integration**: koog (agents, tools, prompts, content moderation)
-**Infrastructure**: k8s-helm, opentelemetry
+**Infrastructure**: opentelemetry
 **Planning**: systematic-planning
 
 Just mention the domain and I'll apply relevant patterns.

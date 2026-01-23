@@ -77,7 +77,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | `/dream-team:update-readme` | Update project README |
 
 ### 20+ Agent Skills
-Domain knowledge for: Kotlin, Spring Boot, React, KMP, Compose, Decompose, Ktor, JOOQ, K8s/Helm, OpenTelemetry, and more.
+Domain knowledge for: Kotlin, Spring Boot, React, KMP, Compose, Decompose, Ktor, JOOQ, OpenTelemetry, and more.
 
 ### Safety Hooks
 - Protected branch enforcement (main/production)
