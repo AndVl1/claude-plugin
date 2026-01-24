@@ -60,6 +60,7 @@ Based on classification, select workflow:
 | FEATURE + MEDIUM | STANDARD | Skip parallel architecture |
 | FEATURE + QUICK | LIGHTWEIGHT | Phases 1, 5, 6 only |
 | BUG_FIX | QUICK FIX | Phases 1, 2 (diagnostics), 5, 6 |
+| BUG_FIX + verify | DEBUG CYCLE | Phases 1, 2, 2.5 (loop), 6 |
 | INVESTIGATION | RESEARCH | Phases 1, 2 only |
 | REVIEW | PARALLEL REVIEW | Phase 6 only |
 | HOTFIX | EMERGENCY | Phases 5, 6 (fast) |
@@ -219,7 +220,95 @@ Use for COMPLEX features. This is the primary workflow.
 - Technology decisions
 - **For bugs**: Root cause analysis and proposed fix
 
-**Checkpoint**: Present findings, proceed to Phase 3
+**Checkpoint**: Present findings, proceed to Phase 3 (or Phase 2.5 for bugs)
+
+---
+
+### PHASE 2.5: DEBUG CYCLE (Optional - BUG_FIX/INVESTIGATION only)
+
+**Goal**: Iteratively fix and verify bugs with diagnostics ↔ manual-qa loop
+
+**When to Use**:
+- BUG_FIX tasks where fix needs verification
+- Complex bugs with unclear reproduction
+- User requests "fix and verify" or "debug cycle"
+
+**Skip if**: Simple bug with obvious fix, or user prefers quick fix without verification
+
+**Actions**:
+
+1. **Diagnostics proposes fix** (from Phase 2):
+   - Root cause identified
+   - Fix proposed as diff
+   - Verification checklist created
+
+2. **User approves fix** → Developer applies changes:
+   ```
+   Agent (developer):
+   "Apply the fix proposed by diagnostics:
+    [paste diff or description]
+
+    Run build to verify compilation."
+   ```
+
+3. **Manual QA verifies** (launch manual-qa):
+   ```
+   Agent (manual-qa):
+   "Verify bug fix using diagnostics handoff:
+
+    ## Handoff from Diagnostics
+    [paste handoff section]
+
+    Execute verification checklist.
+    Test for regressions.
+    Provide verdict: PASS or FAIL."
+   ```
+
+4. **Evaluate verdict**:
+
+   **If PASS**:
+   ```
+   Bug fix verified. Proceeding to Phase 6.
+
+   Files changed: [list]
+   Verified by: manual-qa
+   ```
+   → Skip to Phase 6
+
+   **If FAIL**:
+   ```
+   Agent (diagnostics):
+   "Re-analyze bug with new evidence from manual-qa:
+
+    ## Handoff from Manual QA
+    [paste handoff section]
+
+    Refine diagnosis and propose new fix."
+   ```
+   → Repeat from step 2
+
+**Cycle Limit**: Maximum 3 iterations. If still failing, escalate to user for decision.
+
+**Output**:
+```
+DEBUG CYCLE COMPLETE
+
+Iterations: [N]
+Final Status: PASS / ESCALATED
+
+Fix Summary:
+- Root Cause: [description]
+- Solution: [description]
+- Files Modified: [list]
+
+Verification:
+- Manual QA: PASS
+- Evidence: [screenshots, logs]
+
+Ready for Phase 6: Quality Review
+```
+
+**Checkpoint**: On PASS → proceed to Phase 6. On FAIL after 3 iterations → ask user.
 
 ---
 
@@ -801,6 +890,7 @@ Before Phase 2, create `.claude/team-state.md`:
 ## Progress
 - [x] Phase 1: Discovery - COMPLETED
 - [ ] Phase 2: Exploration - pending
+- [ ] Phase 2.5: Debug Cycle - pending (optional, for BUG_FIX + verify)
 - [ ] Phase 3: Questions - pending
 - [ ] Phase 4: Architecture - pending
 - [ ] Phase 5: Implementation - pending

@@ -239,3 +239,116 @@ rm -f .claude/.manual-qa-active
 ```
 
 **Be thorough and visual. Screenshots tell the story.**
+
+---
+
+## Debug Cycle Protocol (Optional)
+
+When working in DEBUG CYCLE with diagnostics agent, use this handoff format:
+
+### Receiving Handoff FROM Diagnostics
+
+Diagnostics agent will provide:
+- Fix description and files modified
+- Verification checklist to execute
+- Expected behavior
+- Regression areas to spot-check
+
+**Your job**: Execute the checklist, verify the fix works, check for regressions.
+
+### Verdict Format
+
+After testing a fix from diagnostics, provide verdict:
+
+```
+## Verdict: PASS / FAIL
+
+### Fix Tested
+- **Issue**: [from diagnostics handoff]
+- **Fix Applied**: [from diagnostics handoff]
+
+### Verification Results
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| [Check 1 from checklist] | ✅/❌ | [observation] |
+| [Check 2 from checklist] | ✅/❌ | [observation] |
+| [Check 3 from checklist] | ✅/❌ | [observation] |
+
+### Regression Check
+- [Area 1]: ✅ OK / ❌ Issue found
+- [Area 2]: ✅ OK / ❌ Issue found
+
+### Evidence
+- Screenshots: [attached at key points]
+- Console: [clean / errors found]
+- Network: [correct / issues]
+
+### Conclusion
+[PASS: Fix verified, ready for Phase 6]
+[FAIL: Issues remain, needs diagnostics review]
+```
+
+### Handoff TO Diagnostics (on FAIL)
+
+If verdict is FAIL, provide detailed handoff:
+
+```
+## Handoff to Diagnostics
+
+### Test Result: FAIL
+
+### What Failed
+- [specific failure 1 with details]
+- [specific failure 2 with details]
+
+### Evidence
+- **Screenshots**: [describe what's shown]
+- **Console Errors**:
+  ```
+  [paste actual errors]
+  ```
+- **Network Issues**:
+  ```
+  [paste failed requests/responses]
+  ```
+- **Logcat (mobile)**:
+  ```
+  [paste relevant logs]
+  ```
+
+### Observations
+- [Any patterns noticed]
+- [Timing/intermittent issues]
+- [Differences from expected behavior]
+
+### Suggestions (optional)
+- [If you have hypothesis about what might be wrong]
+```
+
+### Handoff TO Phase 6 (on PASS)
+
+If verdict is PASS:
+
+```
+## Ready for Phase 6: Quality Review
+
+### Bug Fixed and Verified
+- **Original Issue**: [description]
+- **Root Cause**: [from diagnostics]
+- **Fix Applied**: [summary]
+- **Verification**: PASS (manual-qa)
+
+### Files Changed
+- [file1] - [change description]
+- [file2] - [change description]
+
+### Test Evidence
+- [Screenshot links or descriptions]
+- Console: Clean
+- API calls: Verified
+
+### Recommended Phase 6 Focus
+- [Specific areas for code-reviewer]
+- [Security aspects for security-tester]
+```

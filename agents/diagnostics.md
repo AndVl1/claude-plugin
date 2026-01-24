@@ -381,3 +381,67 @@ When user approves fix:
 2. Remove all DEBUG_DIAG markers
 3. Run build/tests to verify
 4. Report results
+
+---
+
+## Handoff Protocol (Optional)
+
+When working in DEBUG CYCLE with manual-qa agent, use this handoff format:
+
+### Handoff TO Manual QA
+
+After fix is applied, provide structured handoff:
+
+```
+## Handoff to Manual QA
+
+### Fix Applied
+- **Issue**: [brief description of the bug]
+- **Root Cause**: [what caused it]
+- **Fix**: [what was changed]
+- **Files Modified**: [list]
+
+### Verification Checklist
+- [ ] [Specific check 1 - e.g., "Click submit button, verify no 500 error"]
+- [ ] [Specific check 2 - e.g., "Check network tab for correct API payload"]
+- [ ] [Specific check 3 - e.g., "Verify console has no errors"]
+
+### Test Environment
+- **URL/App**: [localhost:5173 / com.app.package]
+- **Platform**: [Web / Android / iOS]
+- **Preconditions**: [any setup needed]
+
+### Expected Behavior
+[Clear description of correct behavior after fix]
+
+### Regression Areas
+[Other features that might be affected - manual-qa should spot-check]
+```
+
+### Handoff FROM Manual QA
+
+When receiving feedback from manual-qa (verdict: FAIL), expect:
+
+```
+## Handoff to Diagnostics
+
+### Test Result: FAIL
+
+### What Failed
+- [specific failure 1]
+- [specific failure 2]
+
+### Evidence
+- Screenshots: [attached]
+- Console errors: [if any]
+- Network issues: [if any]
+
+### Observations
+[Any additional context that might help diagnosis]
+```
+
+**On receiving FAIL handoff**:
+1. Analyze the new evidence
+2. Re-run diagnostic phases as needed
+3. Propose refined fix
+4. Send new handoff to manual-qa
