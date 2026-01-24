@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '🚀 Dream Team v2.2 Ready | 12 agents | State sync enabled'",
+            "command": "echo '🚀 Dream Team v2.3 Ready | 14 agents | State sync enabled'",
             "timeout": 5
           }
         ]
@@ -115,11 +115,11 @@
         ]
       },
       {
-        "matcher": "mcp__mobile__*",
+        "matcher": "mcp__mobile__(screenshot|get_ui|analyze_screen|tap|long_press|swipe|find_and_tap|tap_by_text|input_text|press_key|find_element|get_current_activity|launch_app|stop_app|shell|open_url|get_logs|launch_desktop_app|stop_desktop_app|get_window_info|focus_window|resize_window|get_clipboard|set_clipboard)",
         "hooks": [
           {
             "type": "command",
-            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Mobile tools, and report findings'; echo '3. Never use Mobile tools directly from main agent'; exit 2; fi",
+            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile interaction tools restricted to manual-qa agent only.'; echo ''; echo 'Allowed without manual-qa (setup/info):'; echo '  list_devices, set_device, set_target, get_target, install_app,'; echo '  get_system_info, get_monitors, get_performance_metrics, clear_logs, wait'; echo ''; echo 'To use interaction tools:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file and perform UI testing'; exit 2; fi",
             "timeout": 5
           }
         ]
