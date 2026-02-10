@@ -12,7 +12,7 @@
       "name": "fullstack-team",
       "source": "./",
       "description": "Fullstack development plugin with 12+ specialized agents for Kotlin/Spring, React, KMP Mobile, Telegram Bots, DevOps, and AI integration",
-      "version": "1.0.1",
+      "version": "1.3.0",
       "author": {
         "name": "AndVl1"
       },

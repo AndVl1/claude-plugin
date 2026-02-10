@@ -1,5 +1,5 @@
 ---
-name: developer
+name: developer-backend
 model: sonnet
 description: Backend developer - implements Kotlin/Spring services and Telegram bots following Architect's design exactly. USE PROACTIVELY for implementation.
 color: green
