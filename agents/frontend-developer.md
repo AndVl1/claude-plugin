@@ -5,7 +5,7 @@ description: Frontend developer - implements React/TypeScript Mini App following
 color: yellow
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: react-vite, telegram-mini-apps, workflow-orchestrator, systematic-planning, openrouter-integration
+skills: react-vite, telegram-mini-apps, workflow-orchestrator, systematic-planning, openrouter-integration, code-quality-checklist
 ---
 
 # Frontend Developer

@@ -5,7 +5,7 @@ description: Expert code reviewer. USE PROACTIVELY after any code changes to ens
 color: magenta
 tools: Read, Glob, Grep, Bash
 permissionMode: acceptEdits
-skills: kotlin-spring-patterns, api-design, ktgbotapi-patterns, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose
+skills: kotlin-spring-patterns, api-design, ktgbotapi-patterns, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose, code-quality-checklist
 ---
 
 # Code Reviewer

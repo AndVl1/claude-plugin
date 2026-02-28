@@ -5,7 +5,7 @@ description: Backend developer - implements Kotlin/Spring services and Telegram 
 color: green
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: kotlin-spring-patterns, kotlin-spring-boot, ktgbotapi, ktgbotapi-patterns, jooq-patterns, ktor-client, workflow-orchestrator, systematic-planning, openrouter-integration
+skills: kotlin-spring-patterns, kotlin-spring-boot, ktgbotapi, ktgbotapi-patterns, jooq-patterns, ktor-client, workflow-orchestrator, systematic-planning, openrouter-integration, code-quality-checklist
 ---
 
 # Developer

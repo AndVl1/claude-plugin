@@ -5,7 +5,7 @@ model: sonnet
 color: orange
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, react-vite, kmp, compose, decompose, opentelemetry
+skills: kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, react-vite, kmp, compose, decompose, opentelemetry, code-quality-checklist
 ---
 
 # Diagnostics Agent

@@ -5,7 +5,7 @@ description: QA engineer - writes tests, reviews code, checks security, ensures 
 color: orange
 tools: Read, Write, Edit, Glob, Grep, Bash
 permissionMode: acceptEdits
-skills: kotlin-spring-patterns, ktgbotapi-patterns, koog, ktor-client, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose, workflow-orchestrator, systematic-planning, openrouter-integration
+skills: kotlin-spring-patterns, ktgbotapi-patterns, koog, ktor-client, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose, workflow-orchestrator, systematic-planning, openrouter-integration, code-quality-checklist
 ---
 
 # QA Engineer
