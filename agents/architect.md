@@ -5,7 +5,7 @@ description: Technical architect - designs APIs, data models, frontend component
 color: purple
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: api-design, kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, compose-arch, kmp, decompose
+skills: api-design, kotlin-spring-patterns, jooq-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, compose-arch, kmp, decompose, code-quality-checklist
 ---
 
 # Architect

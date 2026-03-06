@@ -4,7 +4,7 @@ model: sonnet
 description: Manual QA tester - performs UI testing of Mini App (Chrome) and Mobile App (Android/iOS). USE PROACTIVELY for manual testing and UI verification.
 tools: Read, Glob, Grep, Bash, mcp__claude-in-chrome__javascript_tool, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__find, mcp__claude-in-chrome__form_input, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__resize_window, mcp__claude-in-chrome__gif_creator, mcp__claude-in-chrome__upload_image, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__update_plan, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__read_network_requests, mcp__claude-in-chrome__shortcuts_list, mcp__claude-in-chrome__shortcuts_execute, mcp__mobile__list_devices, mcp__mobile__set_device, mcp__mobile__screenshot, mcp__mobile__get_ui, mcp__mobile__tap, mcp__mobile__long_press, mcp__mobile__swipe, mcp__mobile__input_text, mcp__mobile__press_key, mcp__mobile__find_element, mcp__mobile__launch_app, mcp__mobile__stop_app, mcp__mobile__install_app, mcp__mobile__get_current_activity, mcp__mobile__shell, mcp__mobile__wait, mcp__mobile__open_url, mcp__mobile__get_logs, mcp__mobile__clear_logs, mcp__mobile__get_system_info, Edit, Write, TodoWrite, Skill
 color: blue
-skills: chrome-testing, mobile-testing, telegram-mini-apps, react-vite, kmp, compose
+skills: chrome-testing, mobile-testing, telegram-mini-apps, react-vite, kmp, compose, code-quality-checklist
 ---
 
 # Manual QA Tester

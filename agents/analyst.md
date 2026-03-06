@@ -5,7 +5,7 @@ model: sonnet
 color: red
 tools: Read, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, kmp, compose, decompose
+skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, systematic-planning, react-vite, telegram-mini-apps, kmp, compose, decompose, code-quality-checklist
 ---
 
 

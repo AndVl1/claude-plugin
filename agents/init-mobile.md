@@ -5,7 +5,7 @@ description: Mobile project initializer - creates new KMP Compose Multiplatform 
 color: cyan
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: kmp, compose, decompose, metro-di-mobile, ktor-client
+skills: kmp, compose, decompose, metro-di-mobile, ktor-client, code-quality-checklist
 ---
 
 # Mobile Project Initializer

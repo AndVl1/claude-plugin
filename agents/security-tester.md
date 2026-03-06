@@ -5,7 +5,7 @@ description: Security specialist for vulnerability assessment. USE PROACTIVELY f
 color: red
 tools: Read, Glob, Grep, Bash, WebSearch
 permissionMode: acceptEdits
-skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, koog, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose
+skills: api-design, kotlin-spring-patterns, ktgbotapi-patterns, koog, react-vite, telegram-mini-apps, kmp, compose, compose-arch, decompose, code-quality-checklist
 ---
 
 # Security Tester
