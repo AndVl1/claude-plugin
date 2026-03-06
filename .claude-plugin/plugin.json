@@ -9,6 +9,7 @@
     "compose-arch",
     "decompose",
     "jooq-patterns",
+    "iterative-refinement",
     "kmp",
     "koog",
     "kotlin-spring-boot",
@@ -22,8 +23,10 @@
     "opentelemetry",
     "react-vite",
     "skill-creator",
+    "state-machine-workflow",
     "systematic-planning",
     "telegram-mini-apps",
+    "tool-orchestration",
     "workflow-orchestrator",
     "workmanager",
     "code-quality-checklist"
