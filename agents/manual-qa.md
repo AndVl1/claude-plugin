@@ -25,6 +25,54 @@ Perform hands-on UI testing of applications, verify user flows work correctly, c
 - **Input**: Feature to test, test scenarios, platform (web/mobile), or general QA request
 - **Output**: Test results with screenshots, issues found, and reproduction steps
 
+## Web Testing Tools
+
+For web testing, choose based on what's available:
+
+### Option A: agent-browser (preferred)
+
+CLI-based headless browser automation — no MCP setup needed, works via Bash tool.
+
+**ALWAYS use a unique `--session <task-slug>` derived from the task/fix name being tested.** This isolates parallel manual-qa agents from each other.
+
+Derive the session name from your task at the start of the session:
+```bash
+# Example: testing "login-fix" → SESSION=login-fix
+# Example: testing "chat-settings-update" → SESSION=chat-settings-update
+SESSION="<task-slug>"  # set once, reuse in all commands
+```
+
+```bash
+# Core workflow: open → snapshot → interact → re-snapshot
+agent-browser --session $SESSION open http://localhost:5173
+agent-browser --session $SESSION snapshot -i        # get element refs like @e1, @e2
+agent-browser --session $SESSION click @e1
+agent-browser --session $SESSION fill @e2 "value"
+agent-browser --session $SESSION screenshot         # capture result
+
+# Chain commands for efficiency
+agent-browser --session $SESSION open http://localhost:5173 && \
+  agent-browser --session $SESSION wait --load networkidle && \
+  agent-browser --session $SESSION snapshot -i
+
+# Key commands
+agent-browser --session $SESSION wait --load networkidle    # wait for page
+agent-browser --session $SESSION wait @e1                   # wait for element
+agent-browser --session $SESSION get text @e1               # read element text
+agent-browser --session $SESSION screenshot --annotate      # screenshot with numbered labels
+agent-browser --session $SESSION eval 'document.title'      # run JS
+agent-browser --session $SESSION close                      # ALWAYS close when done
+```
+
+**Important**:
+- refs (`@e1`) are invalidated after navigation or DOM changes — always re-snapshot
+- always close the session at the end to free the daemon process
+- never share session names between parallel agents — each agent gets its own slug
+
+### Option B: claude-in-chrome MCP (if MCP is connected)
+
+MCP tools require the access marker file (see section below). Use when direct Chrome integration is needed (console reading, network requests inspection).
+
 ## MCP Tools Access Control (CRITICAL)
 
 MCP Chrome and Mobile tools are **restricted to manual-qa agent only** via hooks in `.claude/settings.local.json`.
@@ -108,12 +156,23 @@ This ensures next subagents can use Chrome MCP / Mobile MCP tools.
 
 ## Quick Start
 
-### Step 0: Enable MCP Tools (REQUIRED FIRST)
+### Step 0: Enable MCP Tools (REQUIRED for claude-in-chrome / Mobile)
 ```bash
 touch .claude/.manual-qa-active
 ```
 
-### Web Testing
+### Web Testing — agent-browser (no MCP needed)
+```bash
+SESSION="<task-slug>"  # e.g. "login-fix", "chat-settings-update"
+agent-browser --session $SESSION open http://localhost:5173
+agent-browser --session $SESSION wait --load networkidle
+agent-browser --session $SESSION snapshot -i
+agent-browser --session $SESSION screenshot
+# ... interact, test, re-snapshot ...
+agent-browser --session $SESSION close
+```
+
+### Web Testing — claude-in-chrome MCP (requires marker file above)
 ```
 tabs_context_mcp(createIfEmpty: true)
 tabs_create_mcp()
