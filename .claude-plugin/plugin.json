@@ -19,5 +19,11 @@
     "devops",
     "claude-code",
     "plugin"
+  ],
+  "skills": [
+    "handoff-protocol",
+    "iterative-refinement",
+    "tool-orchestration",
+    "state-machine-workflow"
   ]
 }
