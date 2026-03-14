@@ -148,11 +148,17 @@ Document bugs with:
 - Network request details
 
 ### 5. Free Resources
-**CRITICAL**: At session end, remove marker file to allow future manual-qa sessions:
+**CRITICAL**: At session end, ALWAYS clean up to prevent resource leaks:
+
 ```bash
+# Remove marker file for next sessions
 rm -f .claude/.manual-qa-active
+
+# Close agent-browser session (if used)
+agent-browser --session $SESSION close
 ```
-This ensures next subagents can use Chrome MCP / Mobile MCP tools.
+
+**Why this matters**: Headless Chrome processes can accumulate and consume 100% CPU if not properly closed. Each `agent-browser --session` spawns a daemon that must be explicitly terminated with `close`.
 
 ## Quick Start
 
