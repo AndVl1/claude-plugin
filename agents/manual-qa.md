@@ -69,6 +69,43 @@ agent-browser --session $SESSION close                      # ALWAYS close when 
 - always close the session at the end to free the daemon process
 - never share session names between parallel agents — each agent gets its own slug
 
+#### Engine: Lightpanda vs Chromium
+
+**Prefer Lightpanda over Chromium** whenever possible. Chromium can consume excessive CPU (observed: 2 parallel processes at 100% each), while Lightpanda is lightweight and efficient.
+
+| | Lightpanda | Chromium |
+|---|---|---|
+| Memory | **~22 MB** | ~200-500 MB |
+| CPU | **Low** | Can spike to 100% |
+| Speed | **11x faster** | Base |
+| Startup | Instant | 3-5 sec |
+
+**Check if Lightpanda is available:**
+```bash
+which lightpanda
+```
+
+**If installed, use Lightpanda by default:**
+```bash
+# Start Lightpanda server (once per session)
+nohup lightpanda serve --host 127.0.0.1 --port 9223 > /tmp/lightpanda.log 2>&1 &
+
+# Connect agent-browser via CDP
+agent-browser --session $SESSION --cdp "ws://localhost:9223" open http://localhost:5173
+agent-browser --session $SESSION --cdp "ws://localhost:9223" snapshot -i
+
+# Stop server when done
+pkill -f "lightpanda serve"
+```
+
+**Fall back to Chromium only when:**
+- Lightpanda is not installed
+- Site requires features Lightpanda doesn't support (complex SPA, WebGL)
+
+**Limitations (Beta):**
+- Web APIs partially covered (~60-70%)
+- Complex SPA may not work
+
 ### Option B: claude-in-chrome MCP (if MCP is connected)
 
 MCP tools require the access marker file (see section below). Use when direct Chrome integration is needed (console reading, network requests inspection).
