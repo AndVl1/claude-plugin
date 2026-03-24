@@ -1,7 +1,7 @@
 {
   "name": "fullstack-team",
-  "description": "Fullstack development plugin with 14 specialized agents for Kotlin/Spring, React, KMP Mobile, Telegram Bots, DevOps, Diagnostics, and AI integration",
-  "version": "1.4.2",
+  "description": "Fullstack development plugin with 32 specialized skills for Kotlin/Spring, React, KMP Mobile, Telegram Bots, DevOps, Diagnostics, and AI integration",
+  "version": "1.5.0",
   "author": {
     "name": "AndVl1"
   },
@@ -18,6 +18,10 @@
     "kmp",
     "devops",
     "claude-code",
-    "plugin"
-  ]
+    "plugin",
+    "skills",
+    "dark-mode",
+    "theme"
+  ],
+  "skills": "./.claude-plugin/skills.json"
 }
