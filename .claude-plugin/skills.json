@@ -177,6 +177,14 @@
       "description": "RAG memory patterns for AI agents"
     },
     {
+      "name": "mcp-patterns",
+      "path": "./skills/mcp-patterns/SKILL.md",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": ["mcp", "context", "resources", "tools", "orchestration"],
+      "description": "Model Context Protocol patterns for AI agent context management and external resource access"
+    },
+    {
       "name": "react-pattern",
       "path": "./skills/react-pattern/SKILL.md",
       "version": "1.0.0",
@@ -241,6 +249,6 @@
       "description": "Android WorkManager patterns for background tasks"
     }
   ],
-  "total": 32,
-  "last_updated": "2026-03-25"
+  "total": 33,
+  "last_updated": "2026-03-29"
 }
