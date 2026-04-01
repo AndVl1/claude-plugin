@@ -5,7 +5,12 @@
       "path": "./skills/dark-mode/SKILL.md",
       "version": "1.0.0",
       "category": "ui",
-      "tags": ["theme", "dark-mode", "css-variables", "accessibility"],
+      "tags": [
+        "theme",
+        "dark-mode",
+        "css-variables",
+        "accessibility"
+      ],
       "description": "Comprehensive dark mode implementation guide for React applications"
     },
     {
@@ -13,7 +18,13 @@
       "path": "./skills/api-design/SKILL.md",
       "version": "1.0.0",
       "category": "backend",
-      "tags": ["api", "rest", "spring", "ktor", "design"],
+      "tags": [
+        "api",
+        "rest",
+        "spring",
+        "ktor",
+        "design"
+      ],
       "description": "RESTful API design patterns with Spring Boot and Ktor"
     },
     {
@@ -21,7 +32,12 @@
       "path": "./skills/chrome-testing/SKILL.md",
       "version": "1.0.0",
       "category": "testing",
-      "tags": ["testing", "chrome", "selenium", "e2e"],
+      "tags": [
+        "testing",
+        "chrome",
+        "selenium",
+        "e2e"
+      ],
       "description": "Chrome browser testing patterns and automation"
     },
     {
@@ -29,7 +45,11 @@
       "path": "./skills/code-review-checklist/SKILL.md",
       "version": "1.0.0",
       "category": "code-quality",
-      "tags": ["code-review", "checklist", "best-practices"],
+      "tags": [
+        "code-review",
+        "checklist",
+        "best-practices"
+      ],
       "description": "Comprehensive code review checklist for maintainable code"
     },
     {
@@ -37,7 +57,11 @@
       "path": "./skills/compose/SKILL.md",
       "version": "1.0.0",
       "category": "ui",
-      "tags": ["jetpack-compose", "ui", "android"],
+      "tags": [
+        "jetpack-compose",
+        "ui",
+        "android"
+      ],
       "description": "Jetpack Compose UI development patterns"
     },
     {
@@ -45,7 +69,11 @@
       "path": "./skills/compose-arch/SKILL.md",
       "version": "1.0.0",
       "category": "architecture",
-      "tags": ["architecture", "compose", "mobile"],
+      "tags": [
+        "architecture",
+        "compose",
+        "mobile"
+      ],
       "description": "Jetpack Compose architecture patterns"
     },
     {
@@ -53,7 +81,12 @@
       "path": "./skills/context-persistence/SKILL.md",
       "version": "1.0.0",
       "category": "persistence",
-      "tags": ["context", "persistence", "memory", "session"],
+      "tags": [
+        "context",
+        "persistence",
+        "memory",
+        "session"
+      ],
       "description": "Context and session persistence patterns for AI agents"
     },
     {
@@ -61,7 +94,12 @@
       "path": "./skills/decompose/SKILL.md",
       "version": "1.0.0",
       "category": "architecture",
-      "tags": ["decompose", "architecture", "navigation", "react"],
+      "tags": [
+        "decompose",
+        "architecture",
+        "navigation",
+        "react"
+      ],
       "description": "Decompose architecture pattern for React and Kotlin"
     },
     {
@@ -69,7 +107,11 @@
       "path": "./skills/error-recovery/SKILL.md",
       "version": "1.0.0",
       "category": "robustness",
-      "tags": ["error-handling", "recovery", "robustness"],
+      "tags": [
+        "error-handling",
+        "recovery",
+        "robustness"
+      ],
       "description": "Error recovery patterns for resilient systems"
     },
     {
@@ -77,7 +119,12 @@
       "path": "./skills/iterative-refinement/SKILL.md",
       "version": "1.0.0",
       "category": "workflow",
-      "tags": ["refinement", "iteration", "quality", "checklist"],
+      "tags": [
+        "refinement",
+        "iteration",
+        "quality",
+        "checklist"
+      ],
       "description": "Iterative refinement pattern for quality improvement"
     },
     {
@@ -85,7 +132,11 @@
       "path": "./skills/jooq-patterns/SKILL.md",
       "version": "1.0.0",
       "category": "database",
-      "tags": ["jooq", "database", "query"],
+      "tags": [
+        "jooq",
+        "database",
+        "query"
+      ],
       "description": "JOOQ patterns and best practices for database queries"
     },
     {
@@ -93,7 +144,12 @@
       "path": "./skills/kmp/SKILL.md",
       "version": "1.0.0",
       "category": "mobile",
-      "tags": ["kmp", "kotlin-multiplatform", "mobile", "shared"],
+      "tags": [
+        "kmp",
+        "kotlin-multiplatform",
+        "mobile",
+        "shared"
+      ],
       "description": "Kotlin Multiplatform patterns and best practices"
     },
     {
@@ -101,7 +157,11 @@
       "path": "./skills/koog/SKILL.md",
       "version": "1.0.0",
       "category": "testing",
-      "tags": ["koog", "testing", "kotlin"],
+      "tags": [
+        "koog",
+        "testing",
+        "kotlin"
+      ],
       "description": "Koog testing patterns for Kotlin code"
     },
     {
@@ -109,7 +169,11 @@
       "path": "./skills/kotlin-spring-boot/SKILL.md",
       "version": "1.0.0",
       "category": "backend",
-      "tags": ["kotlin", "spring-boot", "backend"],
+      "tags": [
+        "kotlin",
+        "spring-boot",
+        "backend"
+      ],
       "description": "Kotlin with Spring Boot patterns and best practices"
     },
     {
@@ -117,7 +181,12 @@
       "path": "./skills/kotlin-spring-patterns/SKILL.md",
       "version": "1.0.0",
       "category": "backend",
-      "tags": ["kotlin", "spring", "patterns", "design"],
+      "tags": [
+        "kotlin",
+        "spring",
+        "patterns",
+        "design"
+      ],
       "description": "Spring Boot design patterns with Kotlin"
     },
     {
@@ -125,7 +194,11 @@
       "path": "./skills/ktgbotapi/SKILL.md",
       "version": "1.0.0",
       "category": "telegram",
-      "tags": ["telegram", "bot", "ktgbotapi"],
+      "tags": [
+        "telegram",
+        "bot",
+        "ktgbotapi"
+      ],
       "description": "ktgbotapi patterns for Telegram bot development"
     },
     {
@@ -133,7 +206,12 @@
       "path": "./skills/ktgbotapi-patterns/SKILL.md",
       "version": "1.0.0",
       "category": "telegram",
-      "tags": ["telegram", "bot", "patterns", "architectural"],
+      "tags": [
+        "telegram",
+        "bot",
+        "patterns",
+        "architectural"
+      ],
       "description": "Telegram bot architectural patterns with ktgbotapi"
     },
     {
@@ -141,7 +219,11 @@
       "path": "./skills/ktor-client/SKILL.md",
       "version": "1.0.0",
       "category": "backend",
-      "tags": ["ktor", "client", "http"],
+      "tags": [
+        "ktor",
+        "client",
+        "http"
+      ],
       "description": "Ktor client patterns and best practices"
     },
     {
@@ -149,7 +231,11 @@
       "path": "./skills/metro-di-mobile/SKILL.md",
       "version": "1.0.0",
       "category": "mobile",
-      "tags": ["metro", "dependency-injection", "mobile"],
+      "tags": [
+        "metro",
+        "dependency-injection",
+        "mobile"
+      ],
       "description": "Metro dependency injection for mobile development"
     },
     {
@@ -157,7 +243,12 @@
       "path": "./skills/mobile-testing/SKILL.md",
       "version": "1.0.0",
       "category": "testing",
-      "tags": ["testing", "mobile", "android", "ios"],
+      "tags": [
+        "testing",
+        "mobile",
+        "android",
+        "ios"
+      ],
       "description": "Mobile testing patterns and best practices"
     },
     {
@@ -165,7 +256,11 @@
       "path": "./skills/opentelemetry/SKILL.md",
       "version": "1.0.0",
       "category": "observability",
-      "tags": ["opentelemetry", "observability", "tracing"],
+      "tags": [
+        "opentelemetry",
+        "observability",
+        "tracing"
+      ],
       "description": "OpenTelemetry patterns for observability"
     },
     {
@@ -173,7 +268,12 @@
       "path": "./skills/rag-memory/SKILL.md",
       "version": "1.0.0",
       "category": "ai",
-      "tags": ["rag", "memory", "ai", "retrieval"],
+      "tags": [
+        "rag",
+        "memory",
+        "ai",
+        "retrieval"
+      ],
       "description": "RAG memory patterns for AI agents"
     },
     {
@@ -181,7 +281,13 @@
       "path": "./skills/mcp-patterns/SKILL.md",
       "version": "1.0.0",
       "category": "ai",
-      "tags": ["mcp", "context", "resources", "tools", "orchestration"],
+      "tags": [
+        "mcp",
+        "context",
+        "resources",
+        "tools",
+        "orchestration"
+      ],
       "description": "Model Context Protocol patterns for AI agent context management and external resource access"
     },
     {
@@ -189,7 +295,12 @@
       "path": "./skills/react-pattern/SKILL.md",
       "version": "1.0.0",
       "category": "ui",
-      "tags": ["react", "pattern", "reasoning", "agents"],
+      "tags": [
+        "react",
+        "pattern",
+        "reasoning",
+        "agents"
+      ],
       "description": "ReAct pattern for React applications"
     },
     {
@@ -197,7 +308,12 @@
       "path": "./skills/react-vite/SKILL.md",
       "version": "1.0.0",
       "category": "ui",
-      "tags": ["react", "vite", "build", "frontend"],
+      "tags": [
+        "react",
+        "vite",
+        "build",
+        "frontend"
+      ],
       "description": "React with Vite build patterns and configuration"
     },
     {
@@ -205,7 +321,11 @@
       "path": "./skills/skill-creator/SKILL.md",
       "version": "1.0.0",
       "category": "developer",
-      "tags": ["skill-creation", "documentation", "guidelines"],
+      "tags": [
+        "skill-creation",
+        "documentation",
+        "guidelines"
+      ],
       "description": "Guide for creating new Claude Code skills"
     },
     {
@@ -213,7 +333,12 @@
       "path": "./skills/state-machine-workflow/SKILL.md",
       "version": "1.0.0",
       "category": "workflow",
-      "tags": ["workflow", "state-machine", "patterns", "state"],
+      "tags": [
+        "workflow",
+        "state-machine",
+        "patterns",
+        "state"
+      ],
       "description": "State machine workflow patterns for complex processes"
     },
     {
@@ -221,7 +346,11 @@
       "path": "./skills/systematic-planning/SKILL.md",
       "version": "1.0.0",
       "category": "workflow",
-      "tags": ["planning", "systematic", "planning-pattern"],
+      "tags": [
+        "planning",
+        "systematic",
+        "planning-pattern"
+      ],
       "description": "Systematic planning patterns for complex tasks"
     },
     {
@@ -229,7 +358,11 @@
       "path": "./skills/telegram-mini-apps/SKILL.md",
       "version": "1.0.0",
       "category": "telegram",
-      "tags": ["telegram", "mini-apps", "webview"],
+      "tags": [
+        "telegram",
+        "mini-apps",
+        "webview"
+      ],
       "description": "Telegram mini apps patterns and best practices"
     },
     {
@@ -237,15 +370,39 @@
       "path": "./skills/tool-orchestration/SKILL.md",
       "version": "1.0.0",
       "category": "workflow",
-      "tags": ["orchestration", "tools", "chains", "beads"],
+      "tags": [
+        "orchestration",
+        "tools",
+        "chains",
+        "beads"
+      ],
       "description": "Tool orchestration patterns using Beads pattern"
+    },
+    {
+      "name": "tree-of-thoughts",
+      "path": "./skills/tree-of-thoughts/SKILL.md",
+      "version": "1.0.0",
+      "category": "architecture",
+      "tags": [
+        "agent-pattern",
+        "reasoning",
+        "exploration",
+        "strategy",
+        "decision-making"
+      ],
+      "description": "Tree-of-Thoughts pattern for multi-branch reasoning and solution exploration"
     },
     {
       "name": "workmanager",
       "path": "./skills/workmanager/SKILL.md",
       "version": "1.0.0",
       "category": "mobile",
-      "tags": ["workmanager", "background", "jobs", "android"],
+      "tags": [
+        "workmanager",
+        "background",
+        "jobs",
+        "android"
+      ],
       "description": "Android WorkManager patterns for background tasks"
     }
   ],
