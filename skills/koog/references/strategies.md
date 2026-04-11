@@ -144,6 +144,49 @@ val nodeCompress by nodeLLMCompressHistory<String>(
 )
 ```
 
+### Streaming Nodes
+
+```kotlin
+import ai.koog.agents.core.dsl.extension.nodeLLMRequestStreaming
+import ai.koog.prompt.streaming.StreamFrame
+
+// Stream LLM response as Flow<StreamFrame>
+val nodeStream by nodeLLMRequestStreaming(name = "stream")
+// Input: String → Output: Flow<StreamFrame>
+
+// With custom transformation
+val nodeCustomStream by nodeLLMRequestStreaming<MyData>(
+    name = "customStream",
+    structureDefinition = null,
+    transformStreamData = { flow ->
+        flow.filterIsInstance<StreamFrame.TextDelta>()
+            .map { MyData(it.text) }
+    }
+)
+```
+
+### Multiple Tool Nodes (for parallel tool execution)
+
+```kotlin
+// Request LLM with multiple response support
+val nodeCallMulti by nodeLLMRequestMultiple(name = "callMulti")
+// Input: String → Output: List<Message.Response>
+
+// Execute multiple tools (optionally in parallel)
+val nodeExecMulti by nodeExecuteMultipleTools(name = "execMulti", parallelTools = true)
+// Input: List<Message.Tool.Call> → Output: List<ReceivedToolResult>
+
+// Send multiple tool results back
+val nodeSendMulti by nodeLLMSendMultipleToolResults(name = "sendMulti")
+```
+
+### Structured Output Configuration Node
+
+```kotlin
+// Set structured output config before LLM request
+val nodeSetOutput by nodeSetStructuredOutput<Input, Output>(config = structuredRequestConfig)
+```
+
 ### Utility Nodes
 
 ```kotlin
@@ -180,6 +223,9 @@ edge(nodeLLM forwardTo nodeExec onToolNotCalled(myTool))
 
 // On multiple tool calls
 edge(nodeLLM forwardTo nodeMultiExec onMultipleToolCalls { true })
+
+// On multiple assistant messages (for nodeLLMRequestMultiple)
+edge(nodeCallMulti forwardTo nodeFinish onMultipleAssistantMessages { true })
 ```
 
 ### Custom Conditions

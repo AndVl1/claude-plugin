@@ -159,6 +159,52 @@ val executor = SingleLLMPromptExecutor(client)
 
 ---
 
+## AWS Bedrock
+
+Package: `ai.koog.prompt.executor.clients.bedrock`
+
+**JVM only.** Uses AWS Converse API. Supports Claude via Bedrock, guardrails, reasoning config.
+
+```kotlin
+import ai.koog.prompt.executor.clients.bedrock.BedrockLLMClient
+
+val client = BedrockLLMClient(
+    region = "us-east-1"
+    // Uses default AWS credential chain (env vars, ~/.aws/credentials, IAM role, etc.)
+)
+val executor = SingleLLMPromptExecutor(client)
+```
+
+---
+
+## Mistral AI
+
+Package: `ai.koog.prompt.executor.clients.mistralai`
+
+```kotlin
+import ai.koog.prompt.executor.clients.mistralai.MistralAILLMClient
+
+val client = MistralAILLMClient(apiKey = System.getenv("MISTRAL_API_KEY"))
+val executor = SingleLLMPromptExecutor(client)
+```
+
+Extends `AbstractOpenAILLMClient` — compatible with OpenAI-style API.
+
+---
+
+## DashScope (Alibaba Cloud)
+
+Package: `ai.koog.prompt.executor.clients.dashscope`
+
+```kotlin
+import ai.koog.prompt.executor.clients.dashscope.DashscopeLLMClient
+
+val client = DashscopeLLMClient(apiKey = System.getenv("DASHSCOPE_API_KEY"))
+val executor = SingleLLMPromptExecutor(client)
+```
+
+---
+
 ## Common Pattern: Any Provider with Agent
 
 ```kotlin

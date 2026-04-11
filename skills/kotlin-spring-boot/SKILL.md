@@ -1,6 +1,6 @@
 ---
 name: kotlin-spring-boot
-description: Kotlin/Spring Boot 3.x patterns - use for backend services, REST APIs, dependency injection, controllers, and service layers
+description: Kotlin/Spring Boot 3.5.x patterns - use for backend services, REST APIs, dependency injection, controllers, and service layers
 ---
 
 # Kotlin Spring Boot Patterns
@@ -10,9 +10,9 @@ description: Kotlin/Spring Boot 3.x patterns - use for backend services, REST AP
 ```kotlin
 // build.gradle.kts
 plugins {
-    kotlin("jvm") version "2.2.21"
-    kotlin("plugin.spring") version "2.2.21"
-    id("org.springframework.boot") version "3.5.7"
+    kotlin("jvm") version "2.3.20"
+    kotlin("plugin.spring") version "2.3.20"
+    id("org.springframework.boot") version "3.5.13"
 }
 
 dependencies {
