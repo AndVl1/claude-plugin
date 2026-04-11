@@ -91,7 +91,7 @@ Your goal is to conduct a thorough, structured interview to understand ALL aspec
 When the interview is complete:
 1. Summarize all collected information
 2. Ask the user to confirm the summary is accurate (via AskUserQuestionTool)
-3. Ask where to save the specification file (via AskUserQuestionTool, suggest `.claude/specs/` or `docs/specs/`)
+3. Ask where to save the specification file (via AskUserQuestionTool, suggest `.work-state/specs/` or `docs/specs/`)
 4. **Write the specification to a file using Write tool** - DO NOT output to console
 
 ## Output File Format

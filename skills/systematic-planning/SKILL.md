@@ -74,7 +74,9 @@ Numbered steps for execution:
 ```
 
 ## Output Location
-Save planning documents to: `.claude/plans/[feature-name].md`
+Save planning documents to: `.work-state/plans/[feature-name].md` (ensure directory: `mkdir -p .work-state/plans`)
+
+> **Backward compatibility**: Previously plans were saved to `.claude/plans/`. Check there if continuing work from an older session.
 
 ## Integration with Team Workflow
 1. Use this skill for Phase 0 (before analyst)

@@ -872,9 +872,11 @@ Phase 6: Parallel Review (code-reviewer || security-tester)
 
 ## STATE MANAGEMENT
 
+> **Backward compatibility**: In earlier versions, state files were stored in `.claude/`. If you find `team-state.md` in `.claude/` from a previous session, continue working with it there — but for **new sessions always create state in `.work-state/`**. Hooks automatically check both locations, preferring `.work-state/`.
+
 ### Create State File
 
-Before Phase 2, create `.claude/team-state.md`:
+Before Phase 2, create `.work-state/team-state.md` (ensure directory exists: `mkdir -p .work-state`):
 
 ```markdown
 # TEAM STATE
@@ -941,7 +943,7 @@ Mark phases complete, add key outputs.
 
 Before transitioning from Phase N to Phase N+1, you MUST:
 
-1. **UPDATE STATE FILE** - Edit `.claude/team-state.md`:
+1. **UPDATE STATE FILE** - Edit `.work-state/team-state.md`:
    - Mark current phase as `[x] Phase N: Name - COMPLETED`
    - Mark next phase as `[ ] Phase N+1: Name - IN PROGRESS`
    - Add key findings/decisions to appropriate sections
@@ -983,7 +985,7 @@ If state file is out of sync:
 ### Hook Integration
 
 A PreToolUse hook validates state consistency before Task tool calls.
-If validation fails, you will see: `⚠️ STATE SYNC WARNING: Update .claude/team-state.md before proceeding`
+If validation fails, you will see: `⚠️ STATE SYNC WARNING: Update .work-state/team-state.md before proceeding`
 
 ---
 

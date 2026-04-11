@@ -112,11 +112,11 @@ MCP tools require the access marker file (see section below). Use when direct Ch
 
 ## MCP Tools Access Control (CRITICAL)
 
-MCP Chrome and Mobile tools are **restricted to manual-qa agent only** via hooks in `.claude/settings.local.json`.
+MCP Chrome and Mobile tools are **restricted to manual-qa agent only** via hooks.
 
 ### How It Works
 
-A marker file `.claude/.manual-qa-active` controls access:
+A marker file `.work-state/.manual-qa-active` controls access:
 - **Without marker**: MCP tools are blocked with error message
 - **With marker**: MCP tools work normally
 
@@ -124,12 +124,12 @@ A marker file `.claude/.manual-qa-active` controls access:
 
 **AT SESSION START** (before any MCP tool call):
 ```bash
-touch .claude/.manual-qa-active
+mkdir -p .work-state && touch .work-state/.manual-qa-active
 ```
 
 **AT SESSION END** (after all tests complete):
 ```bash
-rm -f .claude/.manual-qa-active
+rm -f .work-state/.manual-qa-active
 ```
 
 ### Why This Exists
@@ -189,7 +189,7 @@ Document bugs with:
 
 ```bash
 # Remove marker file for next sessions
-rm -f .claude/.manual-qa-active
+rm -f .work-state/.manual-qa-active
 
 # Close agent-browser session (if used)
 agent-browser --session $SESSION close
@@ -201,7 +201,7 @@ agent-browser --session $SESSION close
 
 ### Step 0: Enable MCP Tools (REQUIRED for claude-in-chrome / Mobile)
 ```bash
-touch .claude/.manual-qa-active
+mkdir -p .work-state && touch .work-state/.manual-qa-active
 ```
 
 ### Web Testing — agent-browser (no MCP needed)
@@ -234,7 +234,7 @@ screenshot()
 
 ### Step Final: Cleanup (REQUIRED AT END)
 ```bash
-rm -f .claude/.manual-qa-active
+rm -f .work-state/.manual-qa-active
 ```
 
 ## Test Scenarios (Mini App)
