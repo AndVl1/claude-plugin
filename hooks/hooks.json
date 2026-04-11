@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Modified: $CLAUDE_FILE_PATH\" >> .claude/changes.log 2>/dev/null || true",
+            "command": "mkdir -p .work-state && echo \"[$(date '+%Y-%m-%d %H:%M:%S')] Modified: $CLAUDE_FILE_PATH\" >> .work-state/changes.log 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .claude/team-state.md with phase results before proceeding.'; fi; fi",
+            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .work-state/team-state.md with phase results before proceeding.'; fi; fi",
             "timeout": 5
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "STATE_FILE='.claude/team-state.md'; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .claude/team-state.md found. Create state file before launching agents!'; elif [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
+            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .work-state/team-state.md found. Create state file before launching agents!'; elif [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
             "timeout": 5
           }
         ]
@@ -85,16 +85,6 @@
         ]
       },
       {
-        "matcher": "Bash(gh push:*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '(main|production)'; then echo '🚫 BLOCK: Pushing to main/production via gh is not allowed. Use Pull Requests.'; exit 2; fi",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "Bash(git merge:*)",
         "hooks": [
           {
@@ -105,11 +95,31 @@
         ]
       },
       {
+        "matcher": "Bash(git add:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '\\.work-state'; then echo '🚫 BLOCK: Do not stage .work-state/ files. This directory contains ephemeral session state and must not be committed.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if git diff --cached --name-only 2>/dev/null | grep -q '^\\.work-state/'; then echo '🚫 BLOCK: .work-state/ files are staged for commit. Unstage them first: git reset HEAD .work-state/'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "mcp__claude-in-chrome__*",
         "hooks": [
           {
             "type": "command",
-            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Chrome tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Chrome tools, and report findings'; echo '3. Never use Chrome tools directly from main agent'; exit 2; fi",
+            "command": "MARKER_FILE='.work-state/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Chrome tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Chrome tools, and report findings'; echo '3. Never use Chrome tools directly from main agent'; exit 2; fi",
             "timeout": 5
           }
         ]
@@ -119,7 +129,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "MARKER_FILE='.claude/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile interaction tools restricted to manual-qa agent only.'; echo ''; echo 'Allowed without manual-qa (setup/info):'; echo '  list_devices, set_device, set_target, get_target, install_app,'; echo '  get_system_info, get_monitors, get_performance_metrics, clear_logs, wait'; echo ''; echo 'To use interaction tools:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file and perform UI testing'; exit 2; fi",
+            "command": "MARKER_FILE='.work-state/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile interaction tools restricted to manual-qa agent only.'; echo ''; echo 'Allowed without manual-qa (setup/info):'; echo '  list_devices, set_device, set_target, get_target, install_app,'; echo '  get_system_info, get_monitors, get_performance_metrics, clear_logs, wait'; echo ''; echo 'To use interaction tools:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file and perform UI testing'; exit 2; fi",
             "timeout": 5
           }
         ]
@@ -130,7 +140,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '⚠️ Context compacting. State preserved in .claude/team-state.md' && cat .claude/team-state.md 2>/dev/null || echo 'No active task'",
+            "command": "echo '⚠️ Context compacting. State preserved in .work-state/team-state.md' && cat .work-state/team-state.md 2>/dev/null || cat .claude/team-state.md 2>/dev/null || echo 'No active task'",
             "timeout": 5
           }
         ]
@@ -141,7 +151,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "STATE_FILE='.claude/team-state.md'; if [ -f \"$STATE_FILE\" ]; then echo '📋 Final state:' && grep -E '^- \\[' \"$STATE_FILE\" | head -10; if grep -q '\\[ \\] Phase' \"$STATE_FILE\"; then echo '⚠️ INCOMPLETE PHASES: There are incomplete phases in team-state.md!'; fi; fi; echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .claude/sessions.log 2>/dev/null || true",
+            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then echo '📋 Final state:' && grep -E '^- \\[' \"$STATE_FILE\" | head -10; if grep -q '\\[ \\] Phase' \"$STATE_FILE\"; then echo '⚠️ INCOMPLETE PHASES: There are incomplete phases in team-state.md!'; fi; fi; mkdir -p .work-state && echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .work-state/sessions.log 2>/dev/null || true",
             "timeout": 5
           }
         ]
@@ -152,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '📝 Subagent finished. Update .claude/team-state.md with phase results!'",
+            "command": "echo '📝 Subagent finished. Update .work-state/team-state.md with phase results!'",
             "timeout": 5
           }
         ]

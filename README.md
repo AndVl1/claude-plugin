@@ -120,7 +120,11 @@ claude-plugin/
 
 ## State Management
 
-The plugin uses `.claude/team-state.md` to track progress across agent sessions. Create this file in your project:
+The plugin uses `.work-state/team-state.md` to track progress across agent sessions. Create this file in your project:
+
+```bash
+mkdir -p .work-state
+```
 
 ```markdown
 # Team State
@@ -136,6 +140,8 @@ The plugin uses `.claude/team-state.md` to track progress across agent sessions.
 - [ ] Phase 4: Testing
 - [ ] Phase 5: Code Review
 ```
+
+> **Note**: Earlier versions used `.claude/` for state files. The plugin hooks check both locations for backward compatibility, but new sessions should always use `.work-state/`.
 
 ## Requirements
 
