@@ -85,21 +85,31 @@
         ]
       },
       {
-        "matcher": "Bash(gh push:*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '(main|production)'; then echo '🚫 BLOCK: Pushing to main/production via gh is not allowed. Use Pull Requests.'; exit 2; fi",
-            "timeout": 5
-          }
-        ]
-      },
-      {
         "matcher": "Bash(git merge:*)",
         "hooks": [
           {
             "type": "command",
             "command": "BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); if [ \"$BRANCH\" = \"main\" ] || [ \"$BRANCH\" = \"production\" ]; then echo '🚫 BLOCK: Manual merging into main/production is not allowed. Use Pull Requests instead.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git add:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_COMMAND\" | grep -qE '\\.work-state'; then echo '🚫 BLOCK: Do not stage .work-state/ files. This directory contains ephemeral session state and must not be committed.'; exit 2; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if git diff --cached --name-only 2>/dev/null | grep -q '^\\.work-state/'; then echo '🚫 BLOCK: .work-state/ files are staged for commit. Unstage them first: git reset HEAD .work-state/'; exit 2; fi",
             "timeout": 5
           }
         ]
