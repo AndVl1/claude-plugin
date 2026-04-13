@@ -110,7 +110,13 @@ handleEvents {
 
     onLLMStreamingFrameReceived { ctx ->
         // Print streamed text chunks
-        (ctx.streamFrame as? StreamFrame.Append)?.let { print(it.text) }
+        when (val frame = ctx.streamFrame) {
+            is StreamFrame.TextDelta -> print(frame.text)
+            is StreamFrame.ReasoningDelta -> { /* reasoning text: frame.text, frame.summary */ }
+            is StreamFrame.ToolCallComplete -> { /* tool: frame.name, frame.content */ }
+            is StreamFrame.End -> println("\n[Done: ${frame.finishReason}]")
+            else -> {}
+        }
     }
 
     onLLMStreamingCompleted { ctx -> println("\nDone") }

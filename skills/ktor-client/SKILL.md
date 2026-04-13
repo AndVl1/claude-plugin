@@ -12,10 +12,10 @@ HTTP client for Kotlin. Use when the bot needs to communicate with backend servi
 ```kotlin
 // build.gradle.kts
 plugins {
-    kotlin("plugin.serialization") version "2.0.0"
+    kotlin("plugin.serialization") version "2.3.20"
 }
 
-val ktorVersion = "3.1.1"
+val ktorVersion = "3.4.1"
 
 dependencies {
     implementation("io.ktor:ktor-client-core:$ktorVersion")

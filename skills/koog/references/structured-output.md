@@ -3,8 +3,8 @@
 ## Table of Contents
 - [Overview](#overview)
 - [Import Paths](#import-paths)
-- [JsonStructuredData](#jsonstructureddata)
-- [StructuredOutputConfig](#structuredoutputconfig)
+- [JsonStructure](#jsonstructureddata)
+- [StructuredRequestConfig](#structuredoutputconfig)
 - [StructureFixingParser](#structurefixingparser)
 - [structuredOutputWithToolsStrategy](#structuredoutputwithtoolsstrategy)
 - [Direct Executor Usage](#direct-executor-usage)
@@ -17,8 +17,8 @@
 
 Koog provides native structured output support for parsing LLM responses into typed Kotlin data classes. Key components:
 
-- **JsonStructuredData** — defines the schema (JSON Schema generation from `@Serializable` classes)
-- **StructuredOutputConfig** — wraps structured output with optional per-provider overrides
+- **JsonStructure** — defines the schema (JSON Schema generation from `@Serializable` classes)
+- **StructuredRequestConfig** — wraps structured output with optional per-provider overrides
 - **StructureFixingParser** — auto-fixes malformed JSON using a secondary LLM model
 - **structuredOutputWithToolsStrategy** — agent strategy that returns typed output instead of String
 - **nodeLLMRequestStructured** — strategy DSL node for structured output in custom strategies
@@ -29,16 +29,17 @@ Koog provides native structured output support for parsing LLM responses into ty
 
 ```
 // Structured output core
-ai.koog.prompt.structure.StructuredOutput
-ai.koog.prompt.structure.StructuredOutputConfig
+ai.koog.prompt.structure.StructuredRequest          // sealed: Manual, Native
+ai.koog.prompt.structure.StructuredRequestConfig     // was StructuredRequestConfig
 ai.koog.prompt.structure.StructuredResponse
-ai.koog.prompt.structure.StructureFixingParser
+ai.koog.prompt.executor.model.StructureFixingParser  // MOVED from prompt.structure package
 
 // JSON schema
-ai.koog.prompt.structure.json.JsonStructuredData
+ai.koog.prompt.structure.json.JsonStructure           // was JsonStructure
 
 // Strategy DSL nodes
 ai.koog.agents.core.dsl.extension.nodeLLMRequestStructured  // node returning Result<StructuredResponse<T>>
+ai.koog.agents.core.dsl.extension.nodeSetStructuredOutput    // node to configure structured output
 ai.koog.agents.core.dsl.extension.requestLLMStructured       // extension on AIAgentFunctionalContext
 
 // Pre-built strategy with structured output
@@ -52,17 +53,17 @@ ai.koog.prompt.llm.LLMCapability
 
 ---
 
-## JsonStructuredData
+## JsonStructure
 
 Creates a structured data definition from a `@Serializable` Kotlin data class. Generates JSON Schema automatically from the serializer.
 
 ### Creating from Serializer (explicit id)
 
 ```kotlin
-import ai.koog.prompt.structure.json.JsonStructuredData
+import ai.koog.prompt.structure.json.JsonStructure           // was JsonStructure
 import kotlinx.serialization.json.Json
 
-val structure = JsonStructuredData.createJsonStructure(
+val structure = JsonStructure.createJsonStructure(
     id = "MyResponse",                          // required: schema identifier
     serializer = MyResponse.serializer(),        // required: kotlinx KSerializer
     json = Json { ignoreUnknownKeys = true },    // optional: custom Json config
@@ -79,7 +80,7 @@ val structure = JsonStructuredData.createJsonStructure(
 
 ```kotlin
 // Inline reified version — id is auto-derived from class name
-val structure = JsonStructuredData.createJsonStructure<MyResponse>(
+val structure = JsonStructure.createJsonStructure<MyResponse>(
     json = Json { ignoreUnknownKeys = true },
     // examples = listOf(MyResponse(...)),    // few-shot examples (optional)
 )
@@ -109,26 +110,28 @@ data class WeatherReport(
 
 ---
 
-## StructuredOutputConfig
+## StructuredRequestConfig (was StructuredRequestConfig)
 
-Wraps a `StructuredOutput` with optional per-provider overrides and a fixing parser.
+Maps LLM providers to `StructuredRequest` modes (Manual or Native).
 
 ```kotlin
-import ai.koog.prompt.structure.StructuredOutputConfig
-import ai.koog.prompt.structure.StructuredOutput
+import ai.koog.prompt.structure.StructuredRequestConfig
+import ai.koog.prompt.structure.StructuredRequest
 import ai.koog.prompt.llm.LLMProvider
 
-val config = StructuredOutputConfig<MyResponse>(
-    default = myStructuredOutput,           // StructuredOutput<MyResponse>
-    byProvider = mapOf(                     // optional: per-provider overrides
-        LLMProvider.OpenAI to nativeOutput,
-        LLMProvider.OpenRouter to basicOutput
-    ),
-    fixingParser = myFixingParser           // optional: StructureFixingParser
+val config = StructuredRequestConfig<MyResponse>(
+    default = StructuredRequest.Manual(structure),      // prompt-based (most compatible)
+    byProvider = mapOf(                                  // optional: per-provider overrides
+        LLMProvider.OpenAI to StructuredRequest.Native(structure),    // use native response_format
+        LLMProvider.Google to StructuredRequest.Native(structure),
+        LLMProvider.OpenRouter to StructuredRequest.Manual(structure)
+    )
 )
 ```
 
-**Note:** `StructuredOutput` is an interface with a single `structure` property returning `StructuredData`. For JSON, it's backed by `JsonStructuredData`.
+**StructuredRequest modes:**
+- `StructuredRequest.Manual(structure)` — appends structure definition as user message in prompt. Most compatible, works with all models.
+- `StructuredRequest.Native(structure)` — uses model's built-in structured output (response_format). Only schema is sent, examples are ignored.
 
 ---
 
@@ -142,7 +145,7 @@ Auto-fixes malformed LLM responses using a secondary model. The parser:
 ### Constructor
 
 ```kotlin
-import ai.koog.prompt.structure.StructureFixingParser
+import ai.koog.prompt.executor.model.StructureFixingParser
 
 val fixingParser = StructureFixingParser(
     fixingModel = myLLModel,    // LLModel used to fix malformed responses
@@ -155,7 +158,7 @@ val fixingParser = StructureFixingParser(
 
 ```kotlin
 // Use after getting raw text from chatAgentStrategy or similar
-val structure = JsonStructuredData.createJsonStructure(
+val structure = JsonStructure.createJsonStructure(
     id = "MyResponse",
     serializer = MyResponse.serializer()
 )
@@ -198,7 +201,7 @@ Agent strategy that combines tool calling with structured output. The agent can 
 ```kotlin
 import ai.koog.agents.ext.agent.structuredOutputWithToolsStrategy
 
-val config = StructuredOutputConfig<MyResponse>(
+val config = StructuredRequestConfig<MyResponse>(
     default = myStructuredOutput,
     fixingParser = fixingParser      // optional
 )
@@ -224,15 +227,17 @@ val result: MyResponse = agent.run("user input")
 ```kotlin
 // Simple overload (String input → typed Output)
 fun <Output> structuredOutputWithToolsStrategy(
-    config: StructuredOutputConfig<Output>,
-    includeTools: Boolean = true
+    config: StructuredRequestConfig<Output>,
+    fixingParser: StructureFixingParser? = null,
+    parallelTools: Boolean = false
 ): AIAgentGraphStrategy<String, Output>
 
 // With custom input transformer
 fun <Input, Output> structuredOutputWithToolsStrategy(
-    config: StructuredOutputConfig<Output>,
-    includeTools: Boolean = true,
-    buildPrompt: suspend (AIAgentGraphContextBase, Input) -> String
+    config: StructuredRequestConfig<Output>,
+    fixingParser: StructureFixingParser? = null,
+    parallelTools: Boolean = false,
+    transform: suspend AIAgentGraphContextBase.(input: Input) -> String
 ): AIAgentGraphStrategy<Input, Output>
 ```
 
@@ -250,7 +255,7 @@ val prompt = prompt("my-prompt") {
     user("Weather in Moscow?")
 }
 
-// With StructuredOutputConfig
+// With StructuredRequestConfig
 val result: Result<StructuredResponse<WeatherReport>> =
     executor.executeStructured(prompt, model, outputConfig)
 
@@ -345,7 +350,7 @@ val agent = AIAgent(
 val rawResult: String = agent.run("user input")
 
 // Parse with fixing
-val structure = JsonStructuredData.createJsonStructure(
+val structure = JsonStructure.createJsonStructure(
     id = "MyResponse",
     serializer = MyResponse.serializer()
 )
@@ -363,14 +368,13 @@ val typed: MyResponse = fixingParser.parse(executor, structure, rawResult)
 Cleaner API but requires models that support the strategy's tool calling format.
 
 ```kotlin
-val config = StructuredOutputConfig<MyResponse>(
-    default = object : StructuredOutput<MyResponse> {
-        override val structure = JsonStructuredData.createJsonStructure(
-            id = "MyResponse",
-            serializer = MyResponse.serializer()
-        )
-    },
-    fixingParser = StructureFixingParser(fixingModel = gpt4oMini, retries = 2)
+val structure = JsonStructure.create<MyResponse>()
+
+val config = StructuredRequestConfig<MyResponse>(
+    default = StructuredRequest.Manual(structure),
+    byProvider = mapOf(
+        LLMProvider.OpenAI to StructuredRequest.Native(structure)
+    )
 )
 
 val agent = AIAgent(

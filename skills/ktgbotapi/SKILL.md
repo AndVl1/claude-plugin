@@ -12,7 +12,7 @@ Kotlin Multiplatform library for Telegram Bot API. Type-safe, coroutine-based.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("dev.inmo:tgbotapi:18.2.2")
+    implementation("dev.inmo:tgbotapi:31.2.0")
 }
 ```
 

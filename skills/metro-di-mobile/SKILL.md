@@ -7,6 +7,8 @@ description: Metro DI for KMP - use for compile-time dependency injection, graph
 
 Compile-time dependency injection framework for KMP. Production-proven at Cash App.
 
+**Requirements:** JVM 21+, Gradle 9+, Kotlin 2.1+
+
 ## Setup
 
 ### build.gradle.kts
@@ -24,7 +26,7 @@ plugins {
 
 ```toml
 [versions]
-metro = "0.1.1"
+metro = "0.10.2"
 
 [plugins]
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
@@ -282,11 +284,11 @@ interface AppGraph {
 
 ### Assisted Injection
 
-For dependencies that need runtime parameters.
+For dependencies that need runtime parameters. **Use `@AssistedInject` (not `@Inject`) for classes with `@Assisted` parameters.**
 
 ```kotlin
 // Component that needs runtime parameters
-@Inject
+@AssistedInject
 class HomeComponent(
     private val repository: HomeRepository,
     @Assisted val componentContext: ComponentContext
@@ -352,6 +354,74 @@ class AuthHandler : Handler {
 }
 ```
 
+**Note:** Since 0.6.0, multibindings are non-empty by default. If the set/map can be empty, use `allowEmpty = true`:
+
+```kotlin
+@Multibinds(allowEmpty = true)
+val optionalInterceptors: Set<Interceptor>
+```
+
+### Graph Extensions (Subcomponents)
+
+Replace `@Extends`/`isExtendable` with `@GraphExtension` (since 0.4.0):
+
+```kotlin
+// Parent graph must declare extension points
+@DependencyGraph
+interface AppGraph {
+    val authRepository: AuthRepository
+
+    // Declare extension factory
+    val sessionGraphFactory: SessionGraph.Factory
+}
+
+// Child graph uses @GraphExtension
+@GraphExtension
+@DependencyGraph
+interface SessionGraph {
+    val sessionManager: SessionManager
+
+    // Factory interface within child graph
+    @DependencyGraph.Factory
+    interface Factory {
+        fun create(@Provides sessionToken: String): SessionGraph
+    }
+}
+
+// Usage
+val appGraph = createGraph<AppGraph>()
+val sessionGraph = appGraph.sessionGraphFactory.create("token-123")
+```
+
+### @DefaultBinding
+
+Declare a default implementation for an interface (since 0.5.0):
+
+```kotlin
+@DefaultBinding(AuthRepository::class)
+@Inject
+class AuthRepositoryImpl(
+    private val api: ApiService
+) : AuthRepository {
+    // ...
+}
+
+// No @Provides needed — Metro auto-binds AuthRepositoryImpl → AuthRepository
+```
+
+### @GraphPrivate
+
+Mark bindings as private to the graph (not inherited by extensions):
+
+```kotlin
+@DependencyGraph
+interface AppGraph {
+    @Provides
+    @GraphPrivate
+    fun provideInternalCache(): Cache = InMemoryCache()
+}
+```
+
 ## Decompose Integration
 
 ### Component with DI
@@ -363,7 +433,7 @@ interface HomeComponent {
     fun onItemClick(item: HomeItem)
 }
 
-@Inject
+@AssistedInject
 class DefaultHomeComponent(
     private val repository: HomeRepository,
     @Assisted componentContext: ComponentContext
@@ -420,7 +490,7 @@ interface RootComponent {
     }
 }
 
-@Inject
+@AssistedInject
 class DefaultRootComponent(
     private val authComponentFactory: AuthComponent.Factory,
     private val homeComponentFactory: HomeComponent.Factory,
@@ -532,8 +602,10 @@ class AuthRepositoryTest {
 ### Do's
 - One `@DependencyGraph` per platform entry point
 - Use `@BindingContainer` to organize providers by feature/layer
+- Use `@AssistedInject` (not `@Inject`) for classes with `@Assisted` parameters
 - Use `@Assisted` for runtime parameters (ComponentContext, IDs)
 - Prefer constructor injection (`@Inject`) over `@Provides`
+- Use `@DefaultBinding` to auto-bind implementations to interfaces
 - Keep binding containers in the same module as implementations
 - Use `Lazy<T>` for expensive dependencies
 
@@ -541,8 +613,10 @@ class AuthRepositoryTest {
 - Don't create multiple graphs for the same platform
 - Don't put platform-specific code in common binding containers
 - Don't use `@Provides` when `@Inject` on class is sufficient
+- Don't use `@Inject` on classes with `@Assisted` params — use `@AssistedInject`
 - Don't expose implementation types from graphs (use interfaces)
 - Don't put Android Context in common modules
+- Don't use JVM < 21 or Gradle < 9 (required since Metro 0.8.0)
 
 ## Comparison with Koin
 

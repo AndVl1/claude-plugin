@@ -124,18 +124,18 @@ include(":composeApp")
 
 ```toml
 [versions]
-kotlin = "2.1.0"
-agp = "8.7.3"
-compose-multiplatform = "1.7.3"
-ktor = "3.1.1"
+kotlin = "2.3.20"
+agp = "9.1.0"
+compose-multiplatform = "1.10.3"
+ktor = "3.4.1"
 room = "2.8.4"
 datastore = "1.2.0"
 decompose = "3.5.0"
-metro = "0.1.1"
+metro = "0.10.2"
 essenty = "2.5.0"
-coroutines = "1.10.1"
-serialization = "1.7.3"
-ksp = "2.1.0-1.0.29"
+coroutines = "1.10.2"
+serialization = "1.10.0"
+ksp = "2.3.20-1.0.31"
 
 [libraries]
 # Kotlin
@@ -185,10 +185,8 @@ plugins {
 
 kotlin {
     androidTarget {
-        compilations.all {
-            kotlinOptions {
-                jvmTarget = "17"
-            }
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
         }
     }
 
@@ -205,7 +203,6 @@ kotlin {
 
     jvm("desktop")
 
-    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
@@ -240,8 +237,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 ```

@@ -25,7 +25,7 @@ Don't use WorkManager for:
 ```kotlin
 // build.gradle.kts (androidMain or Android module)
 dependencies {
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 }
 ```
 
