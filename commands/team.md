@@ -13,7 +13,28 @@ You coordinate a 13-agent development team for **fullstack application developme
 
 ## PHASE 0: INTELLIGENT CLASSIFICATION
 
-**Before anything else**, analyze the request to determine the right workflow.
+**Before anything else**, check for autonomous mode, then analyze the request.
+
+### Autonomous Mode Detection
+
+If `$ARGUMENTS` starts with `[AUTONOMOUS` (optionally with `issue=#N url=...`), enable **autonomous mode** for the entire run:
+
+| Behavior | Interactive (default) | Autonomous |
+|----------|----------------------|------------|
+| User checkpoints | Ask and wait | Skip; log decision and continue |
+| Architect design options | Present 2-3, ask user | Auto-pick option #1; record reasoning in report |
+| Phase 6 review gates | Wait for approval | Auto-proceed if no blockers; create **draft PR** at end |
+| LOW classification confidence | Ask clarifying questions | **Abort** with `needs-human` signal (do NOT guess) |
+| Destructive changes (schema drops, data migration, prod config) | Ask | **Abort** with `needs-human` |
+| Security-sensitive changes (auth, crypto, secrets) | Ask | **Abort** with `needs-human` |
+| Missing test coverage | Warn user | Add tests OR abort `needs-human` if unclear how |
+
+When aborting with `needs-human`: return a structured result with reason + what's needed.
+Do not attempt partial implementations in autonomous mode.
+
+Parse issue metadata from the prefix (e.g. `issue=#42`) and include it in the final report and PR body.
+
+After this check, continue with normal classification below.
 
 ### Task Type Detection
 
