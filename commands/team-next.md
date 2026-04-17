@@ -36,19 +36,20 @@ this must be safe to run inside `/loop`):
 1. **Phase 0 classify** on issue title+body: type (FEATURE/BUG_FIX/...), complexity, confidence.
 2. **Lite code scan** — grep the repo for keywords from title/body; identify likely-touched
    files/modules. Use Explore agent if scope is broad.
-3. **For BUG_FIX with a stacktrace or clear error in body** — mark BUG_FIX-ready.
-   For BUG_FIX **without** repro steps or stacktrace → mark `needs-human` (reason:
-   "no reproduction info"). Do NOT invoke `manual-qa` here — it may require credentials,
-   env setup, or screenshots to disambiguate; leave for the explicit analyze step.
+3. **For BUG_FIX** — always mark `ready: true` unless destructive/security. Missing
+   repro steps or stacktrace is **not** a blocker: the bug itself IS the task, and
+   `/team` Phase 2 (`diagnostics`) + Phase 2.5 (diagnostics ↔ `manual-qa` debug loop)
+   are designed exactly for forming a hypothesis when repro is unknown. The autonomous
+   loop must take such bugs into work, not punt them to the human.
 
 Decide per task:
 
 | Condition | Action |
 |-----------|--------|
-| Confidence HIGH, scope clear, no open questions | `ready: true`, write `vibe-report/issue-<id>-context.md` with classification + scope + acceptance criteria inferred from body |
+| Confidence HIGH, scope clear | `ready: true`, write `vibe-report/issue-<id>-context.md` with classification + scope + acceptance criteria inferred from body |
+| BUG_FIX (with or without repro) | `ready: true` — `/team` will run diagnostics + manual-qa to form hypothesis |
 | Destructive / schema migration / security-sensitive | `needs-human`, reason in context file |
-| Confidence LOW or ambiguous requirements | `needs-human`, reason = list of concrete questions (for human to address later) |
-| BUG_FIX without repro | `needs-human`, reason = "no repro; run /queue-analyze or update issue" |
+| Confidence LOW **and not a BUG_FIX** (unclear feature requirements) | `needs-human`, reason = list of concrete questions |
 
 Write results back to `queue.json`. Commit the queue + context files as a single
 `chore(queue): auto-analysis <date>` commit, so the audit trail survives.
@@ -100,13 +101,43 @@ Invoke `/team` via the Skill tool with the autonomous prefix:
 ```
 
 The `[AUTONOMOUS ...]` prefix tells `/team` Phase 0 to:
-- skip all user checkpoints
+- skip **user-input** checkpoints (questions, approvals) — but NOT verification phases
 - auto-approve architect design (pick first option)
-- stop and mark task `needs-human` if classification confidence is LOW
+- stop and mark task `needs-human` if classification confidence is LOW **for a FEATURE**
+  (for BUG_FIX, LOW confidence means "run diagnostics + manual-qa to investigate", not punt)
+- run **Phase 2.5 (diagnostics ↔ manual-qa debug loop) MANDATORILY** for every BUG_FIX,
+  even if not tagged as "needs verification" — this is how hypothesis is formed
+- run **Phase 6 verification MANDATORILY** — `manual-qa` post-fix check for BUG_FIX,
+  tests + lint for every task. Autonomous mode means "no human in loop", it does NOT
+  mean "skip QA". Never open a PR without verification evidence.
 - create a **draft PR** at the end instead of waiting for review
 
-If `/team` returns with a `needs-human` signal (ambiguous requirements, destructive change,
-LOW confidence), go to step 5b instead of 5a.
+**Expected return from `/team`** (structured):
+- `status`: `success` | `needs-human` | `failed`
+- `branch`: feature branch name
+- `files_touched`: list
+- `verification`: `{ tests_passed: bool, manual_qa_log: <path>, screenshots: [<paths>] }`
+- `summary`: what was done, what agents ran
+- `needs_human_reason` (if applicable)
+
+### 3.5. Gate before close
+
+Before proceeding to step 4, validate `/team`'s return:
+
+| Check | Failure action |
+|-------|---------------|
+| Branch has ≥1 commit (real code change) | Abort step 5a → 5b with reason "no code changes" |
+| For BUG_FIX: `manual_qa_log` exists and documents reproduction attempt | Abort → 5b "no manual-qa verification" |
+| For BUG_FIX (fixed): `manual_qa_log` confirms post-fix verification | Abort → 5b "fix not verified" |
+| `tests_passed == true` or explicit "no tests applicable" rationale | Abort → 5b "tests failed or skipped without rationale" |
+| Visual task: screenshots present | Abort → 5b "visual change without screenshots" |
+
+This gate catches the common failure where `/team` exits early (e.g., treats verification
+as a "user checkpoint" and skips it). `/team-next` is responsible for the output
+contract; don't trust `/team` to self-regulate.
+
+If `/team` returns with a `needs-human` signal (ambiguous feature requirements, destructive
+change, security-sensitive), go to step 5b instead of 5a.
 
 ### 4. Write report
 
@@ -138,29 +169,31 @@ CI without browser) → **abort step 5a and go to 5b `needs-human`** with reason
 "visual task, screenshots unavailable in autonomous env". Do NOT open a draft PR for a
 visual change without visual proof.
 
-**Report publishing.** For visual tasks (and any report >500 words), publish via the
-`publish-gist-report` skill — it uploads markdown + PNGs as paired secret gists and
-returns a single URL. Link that URL from the PR body (skill handles GitHub's gist
-rendering limits via the two-gist pattern). For small non-visual reports, the local
-file path is sufficient.
+**Report publishing is MANDATORY** for every completed task (both success and
+needs-human paths). Invoke the `publish-gist-report` skill unconditionally — it
+uploads markdown + any PNGs as paired secret gists (two-gist pattern for rendering)
+and returns a single URL. The gist URL replaces the local path in PR body and issue
+comments. If gist publishing fails (auth, network) → retry once, then fall back to
+local path but mark queue.json with `report_publish_failed: true` so the human sees it.
 
 ### 5. Close
 
 **5a. Success path:**
 - Push branch: `git push -u origin feat/issue-<id>-<slug>`
-- If visual task → invoke `publish-gist-report` skill, capture the gist URL
-- Open draft PR linking the issue:
-  - Non-visual: `gh pr create --draft --body "Closes #<id>. Report: <path>"`
-  - Visual: `gh pr create --draft --body "Closes #<id>. Report (with screenshots): <gist-url>"`
-- Update queue.json: `status: "done"`, `pr_url: <url>`, `report_path: <path>`, `report_gist_url: <url>` (if applicable)
+- **Invoke `publish-gist-report` skill** to upload the report (and any screenshots) and get the gist URL
+- Open draft PR linking the issue: `gh pr create --draft --body "Closes #<id>. Report: <gist-url>"`
+- Update queue.json: `status: "done"`, `pr_url: <url>`, `report_path: <local-path>`, `report_gist_url: <url>`
 - On the issue: `gh issue edit <id> --remove-label in-progress --add-label awaiting-review`
-- Comment with PR link (and gist link for visual tasks).
+- Comment on the issue with PR link + gist URL.
 
 **5b. Needs-human path:**
-- Do NOT push, do NOT open PR. Leave the branch local.
-- Update queue.json: `status: "needs-human"`, `report_path: <path>` (report explains why).
+- Do NOT push, do NOT open PR. Leave the branch local (human can inspect).
+- **Still invoke `publish-gist-report`** to upload the partial report — human needs to
+  see what was tried, diagnostics output, manual-qa logs. The gist URL goes into the
+  issue comment so the human can read it on GitHub without pulling the branch.
+- Update queue.json: `status: "needs-human"`, `report_path: <local>`, `report_gist_url: <url>`.
 - On the issue: `gh issue edit <id> --remove-label in-progress --add-label needs-human`
-- Comment with reason and report reference.
+- Comment on the issue with the reason + gist URL.
 
 ### 6. Schedule next iteration (only if inside /loop dynamic mode)
 

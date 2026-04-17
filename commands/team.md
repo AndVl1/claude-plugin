@@ -21,16 +21,37 @@ If `$ARGUMENTS` starts with `[AUTONOMOUS` (optionally with `issue=#N url=...`), 
 
 | Behavior | Interactive (default) | Autonomous |
 |----------|----------------------|------------|
-| User checkpoints | Ask and wait | Skip; log decision and continue |
+| User-input checkpoints (questions, approvals) | Ask and wait | Skip; log decision and continue |
 | Architect design options | Present 2-3, ask user | Auto-pick option #1; record reasoning in report |
-| Phase 6 review gates | Wait for approval | Auto-proceed if no blockers; create **draft PR** at end |
-| LOW classification confidence | Ask clarifying questions | **Abort** with `needs-human` signal (do NOT guess) |
+| **Phase 2.5 debug loop (BUG_FIX)** | Optional, user decides | **MANDATORY for every BUG_FIX** — run diagnostics ↔ manual-qa to form hypothesis and verify fix |
+| **Phase 6 verification** (tests, manual-qa post-fix, lint) | Wait for approval | **MANDATORY — run all of it**, then create **draft PR**. Verification is NOT a user checkpoint |
+| LOW classification confidence, FEATURE | Ask clarifying questions | **Abort** with `needs-human` signal |
+| LOW confidence, BUG_FIX | Ask clarifying questions | **Do NOT abort** — run diagnostics + manual-qa first; the investigation IS the task. Abort only if both fail to form a plausible hypothesis |
 | Destructive changes (schema drops, data migration, prod config) | Ask | **Abort** with `needs-human` |
 | Security-sensitive changes (auth, crypto, secrets) | Ask | **Abort** with `needs-human` |
 | Missing test coverage | Warn user | Add tests OR abort `needs-human` if unclear how |
 
-When aborting with `needs-human`: return a structured result with reason + what's needed.
+**Critical distinction**: "skipping user checkpoints" ≠ "skipping QA/verification". Autonomous
+mode removes the HUMAN from the loop; it does NOT remove quality gates. Manual-qa after a
+bug fix, tests, lint — these are not "checkpoints", they are parts of the work. Never open
+a draft PR without verification evidence.
+
+When aborting with `needs-human`: return a structured result with reason + what's needed
++ all diagnostics/manual-qa output collected so far (so the human sees the investigation trail).
 Do not attempt partial implementations in autonomous mode.
+
+**Return contract** (team-next parses this):
+```
+status: success | needs-human | failed
+branch: <name>
+files_touched: [<paths>]
+verification:
+  tests_passed: true | false | n/a
+  manual_qa_log: <path>        # REQUIRED for BUG_FIX
+  screenshots: [<paths>]        # REQUIRED for visual tasks
+summary: <text>
+needs_human_reason: <text>     # only if status=needs-human
+```
 
 Parse issue metadata from the prefix (e.g. `issue=#42`) and include it in the final report and PR body.
 
