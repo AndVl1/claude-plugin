@@ -133,14 +133,16 @@ Based on classification, select workflow:
 - Telegram Mini App testing
 - KMP Mobile App testing (Android emulators, iOS simulators)
 
-**developer-mobile** (KMP Mobile App):
+**developer-mobile** (KMP Mobile App + Kotlin Web):
 - Kotlin Multiplatform with Compose UI
 - Decompose navigation and components
 - Metro DI (compile-time dependency injection)
 - Screen/View/Component architecture (compose-arch)
+- Feature slice generation (kmp-feature-slice)
 - Ktor Client for networking
 - Room database (Android/iOS/JVM)
-- Platforms: Android, iOS, Desktop, WASM
+- Kotlin web frontends: Compose WASM, Kotlin/JS+React, Kotlin/JS+Vue
+- Platforms: Android, iOS, Desktop, WASM, JS
 
 **init-mobile** (Project Bootstrap):
 - Creates new KMP Compose Multiplatform projects
@@ -440,9 +442,11 @@ Please answer these before I proceed.
 
 2. **Determine implementation scope**:
    - Backend only → Launch developer
-   - Frontend only → Launch frontend-developer
+   - Frontend only (React/TS) → Launch frontend-developer
+   - Frontend only (Kotlin web) → Launch developer-mobile with kotlin-web skill
    - Mobile only → Launch developer-mobile
    - Full-stack (web) → Launch developer + frontend-developer in parallel
+   - Full-stack (Kotlin web) → Launch developer + developer-mobile in parallel
    - Full-stack (mobile) → Launch developer + developer-mobile in parallel
    - New mobile project → Launch init-mobile first, then developer-mobile
 

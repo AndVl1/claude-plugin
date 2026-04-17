@@ -5,7 +5,13 @@ description: Compose Multiplatform Architecture Framework - strict Screen/View/C
 
 # Compose Multiplatform Architecture Framework
 
+> **SINGLE SOURCE OF TRUTH** for Compose Multiplatform architecture rules. All agents and skills reference this file — do not duplicate these rules elsewhere.
+
 Strict architectural patterns for building Compose Multiplatform features using feature slices. Enforces separation of concerns through Screen/View/Component layering.
+
+**Related skills:**
+- `kmp-feature-slice` — procedural feature generation workflow (uses this skill's rules)
+- `kotlin-web` — web frontend patterns (Compose WASM follows these same rules)
 
 ## Core Principles
 
