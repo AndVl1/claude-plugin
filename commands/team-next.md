@@ -116,14 +116,45 @@ LOW confidence), go to step 5b instead of 5a.
 - summary of what `/team` did (files touched, agents run)
 - any warnings/skipped steps
 
+**Visual tasks — screenshots are MANDATORY.**
+
+A task is "visual" if it changes any of:
+- UI components (Compose, React, HTML/CSS)
+- layout, styling, theming, copy shown to users
+- user-visible flows (navigation, forms, error states)
+- anything labelled `ui`, `frontend`, `mobile`, `design`
+
+For visual tasks, the report MUST include:
+- **Before** screenshot (from `manual-qa` reproduction OR current `main`)
+- **After** screenshot (post-fix, captured via `manual-qa` on the feature branch)
+- Both golden path AND any affected edge cases (empty, error, loading)
+
+Capture screenshots by invoking `manual-qa` agent against the running app (Chrome for
+Mini App / web, Android/iOS simulator for mobile). Save PNGs alongside the markdown in
+`vibe-report/issue-<id>-screenshots/`.
+
+If screenshots cannot be captured (no dev env available, credentials missing, headless
+CI without browser) → **abort step 5a and go to 5b `needs-human`** with reason
+"visual task, screenshots unavailable in autonomous env". Do NOT open a draft PR for a
+visual change without visual proof.
+
+**Report publishing.** For visual tasks (and any report >500 words), publish via the
+`publish-gist-report` skill — it uploads markdown + PNGs as paired secret gists and
+returns a single URL. Link that URL from the PR body (skill handles GitHub's gist
+rendering limits via the two-gist pattern). For small non-visual reports, the local
+file path is sufficient.
+
 ### 5. Close
 
 **5a. Success path:**
 - Push branch: `git push -u origin feat/issue-<id>-<slug>`
-- Open draft PR linking the issue: `gh pr create --draft --body "Closes #<id>. Report: <path>"`
-- Update queue.json: `status: "done"`, `pr_url: <url>`, `report_path: <path>`
+- If visual task → invoke `publish-gist-report` skill, capture the gist URL
+- Open draft PR linking the issue:
+  - Non-visual: `gh pr create --draft --body "Closes #<id>. Report: <path>"`
+  - Visual: `gh pr create --draft --body "Closes #<id>. Report (with screenshots): <gist-url>"`
+- Update queue.json: `status: "done"`, `pr_url: <url>`, `report_path: <path>`, `report_gist_url: <url>` (if applicable)
 - On the issue: `gh issue edit <id> --remove-label in-progress --add-label awaiting-review`
-- Comment with PR link.
+- Comment with PR link (and gist link for visual tasks).
 
 **5b. Needs-human path:**
 - Do NOT push, do NOT open PR. Leave the branch local.
