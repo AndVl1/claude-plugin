@@ -592,6 +592,12 @@ actual class AppStorage {
 - No `Dispatchers.IO` (use `Dispatchers.Default`)
 - Web Workers for background tasks (limited)
 
+## Related Skills
+
+- `kotlin-web` — Kotlin-based web frontends (Compose WASM, Kotlin/JS+React, Kotlin/JS+Vue). Use for `wasmJsMain` and `jsMain` web patterns beyond basic setup.
+- `kmp-feature-slice` — Procedural feature generation workflow. Uses this skill's project structure.
+- `compose-arch` — Architecture rules for Compose UI layers.
+
 ## Resources
 
 - [Kotlin Multiplatform Docs](https://kotlinlang.org/docs/multiplatform.html)
