@@ -1,6 +1,6 @@
 ---
 name: kmp-feature-slice
-description: Procedural KMP feature generation workflow - step-by-step creation of feature slices with typed errors, compose-arch compliance, and build verification
+description: Procedural KMP feature generation workflow — step-by-step creation of feature slices with typed errors, compose-arch compliance, and build verification. Use when scaffolding a new feature module in a KMP/Compose Multiplatform project.
 ---
 
 # KMP Feature Slice Generator
@@ -8,6 +8,15 @@ description: Procedural KMP feature generation workflow - step-by-step creation 
 Procedural workflow for generating complete KMP feature slices. Enforces strict creation order, typed error handling, and compose-arch compliance.
 
 **Prerequisites**: Read `compose-arch` skill first — it is the SINGLE SOURCE OF TRUTH for architecture rules.
+
+## Companion skills (versions live there — do not duplicate)
+
+- Architecture rules + Component/View/Screen split — `compose-arch`.
+- DI annotations (`@BindingContainer`, `@Provides`, `@AssistedInject`) — `metro-di-mobile` (Metro 1.0.0).
+- Navigation primitives (`Value<T>`, `ChildStack`) — `decompose`.
+- HTTP — `ktor-client` (3.4.3).
+
+When generating a slice, **always read these companion skills first** for current versions and idioms; never inline a version here.
 
 ## Phase 1: Input Collection (LOW FREEDOM)
 

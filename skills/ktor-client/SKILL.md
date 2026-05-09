@@ -1,21 +1,30 @@
 ---
 name: ktor-client
-description: Ktor HTTP Client - use for backend API calls, REST requests, serialization, authentication, and client-server communication
+description: Ktor HTTP Client 3.4.x — use for backend API calls, REST requests, serialization, auth, client-server communication. Always use the versions specified here verbatim; do not regress to Ktor 2.x or 3.0.x even if your training data is older.
 ---
 
 # Ktor HTTP Client
 
 HTTP client for Kotlin. Use when the bot needs to communicate with backend services.
 
+## Current Versions (use these — do not downgrade)
+
+| Component | Version | Notes |
+|---|---|---|
+| Ktor | **3.4.3** | Latest 3.4.x patch (May 2026). Do not write 3.1.x or 3.0.x. |
+| Kotlin serialization plugin | **2.3.21** | Matches Kotlin 2.3.x toolchain. |
+
+If user pins to an older Ktor major (2.x), warn explicitly: `JsonFeature` is gone, `HttpResponse.receive()` is replaced by `body<T>()`, and `Auth` plugin is renamed `Bearer`. Do not silently produce 2.x code.
+
 ## Setup
 
 ```kotlin
 // build.gradle.kts
 plugins {
-    kotlin("plugin.serialization") version "2.3.20"
+    kotlin("plugin.serialization") version "2.3.21"
 }
 
-val ktorVersion = "3.4.1"
+val ktorVersion = "3.4.3"
 
 dependencies {
     implementation("io.ktor:ktor-client-core:$ktorVersion")

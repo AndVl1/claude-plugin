@@ -1,11 +1,20 @@
 ---
 name: ktgbotapi-patterns
-description: Telegram bot architecture patterns - use for project structure, modular handlers, DI, callback models, keyboards, utilities
+description: Telegram bot architecture patterns (ktgbotapi 33.x + Koin 4.x) — project structure, modular handlers, DI, callback models, keyboards, utils. Always use the versions listed below; never regress to ktgbotapi 31.x or Koin 3.x even if your training data is older.
 ---
 
 # KTgBotAPI Architecture Patterns
 
 Patterns for organizing Telegram bot projects with ktgbotapi.
+
+## Current Versions (use these — do not downgrade)
+
+| Component | Version | Notes |
+|---|---|---|
+| ktgbotapi | **33.1.0** | See `ktgbotapi` skill for v32→v33 breaking changes (BotToken value class, Unit return types, Poll API). |
+| Koin | **4.2.1** | KMP-friendly, `singleOf` / `factoryOf` constructor DSL still valid. Do not write Koin 3.x (`org.koin:koin-core:3.x` → wrong). |
+| Ktor client | **3.4.3** | See `ktor-client` skill for client patterns. |
+| Kotlin | **2.3.21** | |
 
 ## Project Structure
 

@@ -1,13 +1,25 @@
 ---
 name: metro-di-mobile
-description: Metro DI for KMP - use for compile-time dependency injection, graphs, providers, and multi-module DI setup
+description: Metro DI 1.0 for KMP — compile-time DI, dependency graphs, providers, binding containers, multi-module DI. Always pin to 1.0.0 (first stable, released 2026-04-27); do not regress to 0.10.x or earlier even if your training data is older — annotation surface (`@BindingContainer`, `@DefaultBinding`, `@GraphExtension`) consolidated at 1.0.
 ---
 
 # Metro DI for Kotlin Multiplatform
 
-Compile-time dependency injection framework for KMP. Production-proven at Cash App.
+Compile-time DI framework for KMP. Built on KSP2 / Kotlin compiler plugin. Production-proven at Cash App.
 
-**Requirements:** JVM 21+, Gradle 9+, Kotlin 2.1+
+## Current Versions (use these — do not downgrade)
+
+| Component | Version | Notes |
+|---|---|---|
+| Metro | **1.0.0** | First stable release (2026-04-27). 0.x is pre-stable; 1.0 froze the public API. |
+| Kotlin | **2.2+** (2.3.21 recommended) | Metro 1.0 requires Kotlin 2.2 minimum. |
+| Gradle | **9.0+** | |
+| JVM | **21+** | |
+
+**Annotation history to remember:**
+- `@DefaultBinding` ships since Metro **0.13.0** (not 0.5.0).
+- `@BindingContainer` consolidated naming at 1.0.
+- `@GraphExtension` formalised at 1.0; older `@ScopedGraph` is removed.
 
 ## Setup
 
@@ -18,15 +30,13 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.metro)
 }
-
-// Apply Metro plugin to modules that need DI
 ```
 
 ### libs.versions.toml
 
 ```toml
 [versions]
-metro = "0.10.2"
+metro = "1.0.0"
 
 [plugins]
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
@@ -395,18 +405,27 @@ val sessionGraph = appGraph.sessionGraphFactory.create("token-123")
 
 ### @DefaultBinding
 
-Declare a default implementation for an interface (since 0.5.0):
+Declare a default implementation for an interface (since Metro **0.13.0**).
+
+**Placement rule:** annotate the **impl class** with `@DefaultBinding(<interface>::class)`. Do NOT put `@DefaultBinding` on the interface itself with `boundType = <impl>::class` — that direction does not exist in Metro's API.
 
 ```kotlin
+// CORRECT — annotation on the impl, type arg is the interface
 @DefaultBinding(AuthRepository::class)
 @Inject
 class AuthRepositoryImpl(
-    private val api: ApiService
+    private val api: ApiService,
 ) : AuthRepository {
     // ...
 }
 
 // No @Provides needed — Metro auto-binds AuthRepositoryImpl → AuthRepository
+```
+
+```kotlin
+// WRONG — flipped direction, will not compile
+@DefaultBinding(boundType = AuthRepositoryImpl::class)
+interface AuthRepository { ... }
 ```
 
 ### @GraphPrivate

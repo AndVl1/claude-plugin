@@ -1,25 +1,55 @@
 ---
 name: kotlin-spring-boot
-description: Kotlin/Spring Boot 3.5.x patterns - use for backend services, REST APIs, dependency injection, controllers, and service layers
+description: Kotlin + Spring Boot 4.0.x patterns — use for backend services, REST APIs, DI, controllers, services. Always use these versions verbatim; do not downgrade to Spring Boot 3.x or Kotlin 2.1.x even if your training data suggests older releases.
 ---
 
 # Kotlin Spring Boot Patterns
+
+## Current Versions (verify before scaffolding new project)
+
+| Component | Version | Notes |
+|---|---|---|
+| Spring Boot | **4.0.6** | First GA: 4.0.0 on 2025-11-20. Built on Spring Framework 7.0.7+, Java 17 baseline (Java 25 supported), **Kotlin 2.2 minimum**. |
+| Kotlin | **2.3.21** | Required for Spring Boot 4. |
+| Spring Framework | **7.0.7+** | Pulled transitively. |
+
+If asked for an older Spring Boot 3.x scaffold (e.g. for legacy compat), use 3.5.x as the floor — never 3.4 or earlier.
+
+### Spring Boot 4.0 breaking changes to remember
+
+- **Jackson 3 is the default.** Package moved from `com.fasterxml.jackson` → `tools.jackson`. Use `jackson-module-kotlin` from the new coords; the old jackson 2.x still works but adds dual classpath.
+- **HTTP clients namespace.** Properties moved under `spring.http.clients.*` (was `spring.http.client.*`).
+- **Kotlin compiler flag.** Add `-Xannotation-default-target=param-property` to `freeCompilerArgs` so `@field:` style annotations on data class params behave correctly with Spring's reflection.
+- **AOT / native** is first-class — keep reflection use minimal; avoid `kotlin-reflect` outside framework needs.
+- Removed in 4.0: legacy `WebMvcConfigurer` defaults that no-op'd, `@EnableConfigurationProperties` is no longer needed when using `@ConfigurationPropertiesScan`.
 
 ## Project Configuration
 
 ```kotlin
 // build.gradle.kts
 plugins {
-    kotlin("jvm") version "2.3.20"
-    kotlin("plugin.spring") version "2.3.20"
-    id("org.springframework.boot") version "3.5.13"
+    kotlin("jvm") version "2.3.21"
+    kotlin("plugin.spring") version "2.3.21"
+    id("org.springframework.boot") version "4.0.6"
+    id("io.spring.dependency-management") version "1.1.7"
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-Xjsr305=strict",
+            "-Xannotation-default-target=param-property",
+        )
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
 }
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    // Jackson 3 (Spring Boot 4 default)
+    implementation("tools.jackson.module:jackson-module-kotlin")
 }
 ```
 

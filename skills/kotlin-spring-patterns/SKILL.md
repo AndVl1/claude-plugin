@@ -1,9 +1,11 @@
 ---
 name: kotlin-patterns
-description: Kotlin/Spring Boot patterns for backend services - use when implementing backend features, writing services, repositories, or controllers
+description: Kotlin + Spring Boot 4.x patterns for backend services — use when implementing backend features, writing services, repositories, or controllers. Pair with the `kotlin-spring-boot` skill for current versions and Spring Boot 4 migration notes.
 ---
 
 # Kotlin Patterns for Backend Services
+
+> **Versions** for Spring Boot, Kotlin, Jackson 3, etc. — see the `kotlin-spring-boot` skill. Always defer to that skill's version table; do not encode versions inline here.
 
 ## Entity Pattern
 
