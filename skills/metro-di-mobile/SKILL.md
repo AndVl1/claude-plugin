@@ -21,6 +21,22 @@ Compile-time DI framework for KMP. Built on KSP2 / Kotlin compiler plugin. Produ
 - `@BindingContainer` consolidated naming at 1.0.
 - `@GraphExtension` formalised at 1.0; older `@ScopedGraph` is removed.
 
+## Supported KMP targets
+
+The skill name says "mobile" because that is the primary use case, but Metro 1.0 supports the full KMP target matrix. Apply the plugin to any KMP module — including `api/` modules that span JS / WASM — and `@Inject`, `@DefaultBinding`, `@DependencyGraph`, `@BindingContainer` all work.
+
+| Target family | Supported | Notes |
+|---|---|---|
+| JVM / Android | ✅ | Primary path. |
+| iOS / macOS / watchOS / tvOS | ✅ | Native compiler plugin. Removed deprecated `macosX64`, `tvosX64`, `watchosX64`. |
+| Linux / Windows (`linuxX64`, `mingwX64`) | ✅ | |
+| `js(IR)` | ✅ | Has known limitations with Kotlin/JS incremental compilation when generating top-level declarations from compiler plugins; sample integration-tests include workarounds. |
+| `wasmJs`, `wasmWasi` | ✅ | See `samples/circuit-app/src/wasmJsMain/...` in upstream repo for a real wasmJs graph. |
+
+Confirmed via Metro 1.0 `samples/integration-tests/build.gradle.kts` and `build-logic/MetroProjectExtension.kt` (`configureCommonKmpTargets` enables `js(IR)` + `wasmJs` everywhere).
+
+So: **do NOT skip `@Inject` / `@DefaultBinding` on api types just because the api module is consumed on web.** Apply the Metro Gradle plugin to the api module and annotate normally. The only target that historically failed (Metro 0.x — pre-stable) is now supported.
+
 ## Setup
 
 ### build.gradle.kts

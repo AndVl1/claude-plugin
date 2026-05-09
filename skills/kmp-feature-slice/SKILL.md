@@ -178,19 +178,19 @@ interface <Name>Component {
 - `class` vs `object` `@BindingContainer`: match the host project's convention. Both work in Metro 1.0.
 
 ### Step 13-14: Gradle Build Files
-- API module: kotlin multiplatform only, no compose, no Metro plugin.
+- API module: kotlin multiplatform only, no compose. Apply the Metro plugin if you want use cases to carry `@Inject`.
 - Impl module: kotlin multiplatform + compose + decompose + Metro plugin.
 
-#### Cross-target api callout
+#### Cross-target api note
 
-When the `api/` module includes a JS/WASM target (e.g. for reuse in a `webApp/` Kotlin/JS frontend), keep it Metro-free: do **not** put `@Inject` / `@DefaultBinding` on api types, and do not apply the Metro plugin to the api module. Metro 1.0's target list is mobile/JVM/native — applying it to a JS source set will fail to compile.
+Metro 1.0 supports the full KMP target matrix — including `js(IR)`, `wasmJs`, `wasmWasi`, and all native targets (see `metro-di-mobile` skill's "Supported KMP targets" table). So an `api/` module that targets `android+ios+desktop+js+wasmJs` can still apply the Metro plugin and use `@Inject` on its use cases. Web frontends consuming the api module will compile fine.
 
-Mechanics:
-- Use cases in `api/` stay as plain Kotlin classes with constructor parameters (no annotations).
-- The `impl/` module provides them via `@Provides` in `<Name>Module.kt` (mobile path).
-- The web target hand-wires use cases by passing a JS-side `Repository` impl into the use case constructor at the call site — typically once per page or in a small `WebAppContainer` factory.
+The only reason to keep an `api/` module Metro-free is when **the consumer doesn't run Metro at all** — for example, a non-KMP Kotlin/JS app that pulls in only the `api` artifact and wires use cases by hand. In that case:
+- Use cases in `api/` stay as plain Kotlin classes (no annotations).
+- The `impl/` module provides them via `@Provides` in `<Name>Module.kt` for the mobile path.
+- The web target instantiates use cases manually (`GetOrderHistoryUseCase(JsOrderHistoryRepository())`) at the call site.
 
-If the web target is not in scope, you can simplify: put `@Inject` on use cases in `api/` and Metro auto-discovers them (no `@Provides` needed).
+Default to "Metro everywhere" unless you have a concrete reason to opt out.
 
 ### Step 15: Settings Update
 - Add both modules to `settings.gradle.kts`
