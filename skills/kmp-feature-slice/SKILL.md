@@ -85,13 +85,15 @@ feature/<name>/
 
 ### Conditional Files
 
-| Condition | Additional Files |
-|-----------|-----------------|
-| `data-sources: local+remote` | `<Name>LocalDataSource.kt` (Step 4b) |
-| `has: list+detail` | `<Name>DetailComponent.kt`, `<Name>DetailView.kt`, `<Name>DetailScreen.kt` |
-| `pagination: true` | `<Name>Pager.kt` in domain/ |
-| `navigation: stack` | Navigation config in `<Name>Component.kt` |
-| `navigation: slot` | Slot config in `<Name>Component.kt` |
+| Condition | Additional Files | Insert at step |
+|-----------|-----------------|---------------|
+| `data-sources: local+remote` | `<Name>LocalDataSource.kt` | Step 4b — same step as RemoteDataSource |
+| `has: list+detail` | `<Name>DetailComponent.kt` (api), `<Name>Default<Name>DetailComponent.kt` (impl), `<Name>DetailView.kt`, `<Name>DetailScreen.kt`, `<Name>DetailViewState.kt`, `<Name>DetailEvent.kt` | Generate each next to its non-detail sibling: detail interface at Step 1, detail component impl at Step 7, detail view/state/event at Steps 8-10, detail screen at Step 11 |
+| `pagination: true` | `<Name>Pager.kt` in `impl/domain/` | Step 5b — between Repository (Step 5) and Component (Step 7) |
+| `navigation: stack` | Navigation config (`Config` sealed class + `ChildStack`) in `<Name>Component.kt` and `Default<Name>Component.kt` | Steps 1 + 7 |
+| `navigation: slot` | Slot config in `<Name>Component.kt` and `Default<Name>Component.kt` | Steps 1 + 7 |
+
+> **Component owning navigation alongside state.** A Component can expose BOTH `val viewState: Value<T>` AND `val childStack: Value<ChildStack<Config, Child>>`. They are independent fields. The list+detail variant typically uses an internal `ChildStack` to swap between list and detail children inside the same Component — see Step 7 below.
 
 ### Gradle Files
 
@@ -165,15 +167,30 @@ interface <Name>Component {
 
 ### Step 11: Screen (impl/screen/)
 - Thin adapter: subscribe to component state, pass to View
-- Maximum 20 lines
+- Target ~20 lines for a single-view screen. With `list+detail` and an internal `Children { when }` block, ~25–30 lines is acceptable — the rule is "no logic", not a hard line count.
 
 ### Step 12: DI Module (impl/di/)
-- `@BindingContainer` with `@Provides` bindings
-- One module per feature
+- `@BindingContainer` with `@Provides` bindings — one module per feature.
+- For each interface declared in `api/` whose impl lives in `impl/`, prefer `@DefaultBinding(<ApiInterface>::class)` on the impl class over a hand-written `@Provides` — Metro auto-binds and you avoid one boilerplate function per interface.
+- Use `@Provides` in the module only when:
+  - the binding requires plumbing several deps together (e.g. wrapping a `HttpClient` into a feature-scoped service), OR
+  - the supertype lives in a module that cannot depend on Metro (see "Cross-target api" callout below).
+- `class` vs `object` `@BindingContainer`: match the host project's convention. Both work in Metro 1.0.
 
 ### Step 13-14: Gradle Build Files
-- API module: kotlin multiplatform only, no compose
-- Impl module: kotlin multiplatform + compose + decompose + metro
+- API module: kotlin multiplatform only, no compose, no Metro plugin.
+- Impl module: kotlin multiplatform + compose + decompose + Metro plugin.
+
+#### Cross-target api callout
+
+When the `api/` module includes a JS/WASM target (e.g. for reuse in a `webApp/` Kotlin/JS frontend), keep it Metro-free: do **not** put `@Inject` / `@DefaultBinding` on api types, and do not apply the Metro plugin to the api module. Metro 1.0's target list is mobile/JVM/native — applying it to a JS source set will fail to compile.
+
+Mechanics:
+- Use cases in `api/` stay as plain Kotlin classes with constructor parameters (no annotations).
+- The `impl/` module provides them via `@Provides` in `<Name>Module.kt` (mobile path).
+- The web target hand-wires use cases by passing a JS-side `Repository` impl into the use case constructor at the call site — typically once per page or in a small `WebAppContainer` factory.
+
+If the web target is not in scope, you can simplify: put `@Inject` on use cases in `api/` and Metro auto-discovers them (no `@Provides` needed).
 
 ### Step 15: Settings Update
 - Add both modules to `settings.gradle.kts`

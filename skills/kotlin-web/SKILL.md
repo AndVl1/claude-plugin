@@ -18,6 +18,19 @@ Patterns for building web frontends in Kotlin. Three approaches with clear selec
 
 > Do not write `pre.886` or other floating wrapper versions; use the BOM pattern: `implementation(platform("org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom:2026.5.2"))` then non-versioned dependencies.
 
+## Targets at a glance — do not confuse them
+
+Two distinct Kotlin targets sit behind "web", and each picks a different framework family:
+
+| Target | Gradle DSL | Framework family | Output |
+|---|---|---|---|
+| **WASM** | `wasmJs("web") { browser() }` | Compose Multiplatform (Skiko canvas) | Single `.wasm` + tiny JS shim. Canvas-rendered UI. |
+| **JS (IR)** | `js(IR) { browser() }` | Kotlin/JS + React (or Vue) via `kotlin-wrappers` | DOM-native UI, full browser tooling. |
+
+When Decision Tree picks Compose WASM → use `wasmJs("web")`. When it picks React/Vue → use `js(IR)`. Do not try to put React on `wasmJs` or Compose for Web on `js(IR)` — different ecosystems entirely.
+
+A KMP project can host both targets simultaneously (e.g. an internal admin via WASM and a public-facing site via JS+React); they are separate Gradle modules with separate `build.gradle.kts` files.
+
 ## Decision Tree
 
 > **Правило выбора**: Compose WASM — для быстрых MVP и внутренних инструментов. Для продакшн-приложений с серьёзными требованиями к UX, производительности и доступности — Kotlin/JS + React или Vue.
