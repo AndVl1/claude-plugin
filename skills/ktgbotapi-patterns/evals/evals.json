@@ -1,0 +1,36 @@
+{
+  "skill_name": "ktgbotapi-patterns",
+  "evals": [
+    {
+      "id": 1,
+      "name": "support-bot-architecture",
+      "prompt": "Designing a Telegram support bot — user starts dialog, picks category, describes issue, attaches screenshots, ticket gets created in our DB and forwarded to support agents. Standalone Kotlin service. Use ktgbotapi, Metro DI, FSM for the dialog. Show the project module layout, how handlers are split, where DI graph is rooted, callback data models, and FSM state types. Don't write every handler body — show the structure.",
+      "expected_output": "Module layout (handlers/, callbacks/, domain/), Metro DI graph at root, modular handlers grouped by domain, sealed callback data classes, FSM with sealed State subclasses for the dialog steps.",
+      "files": [],
+      "assertions": [
+        "Module/package layout explicit (handlers/, callbacks/, domain/, di/ or equivalent)",
+        "DI uses Metro (not Koin)",
+        "@DependencyGraph or @BindingContainer used (Metro 1.0 surface)",
+        "FSM uses sealed State subclasses for dialog steps",
+        "Callback data uses sealed class with kotlinx.serialization (SerialName) or data classes",
+        "Handlers organized into separate files/objects per domain area",
+        "ktgbotapi 33.x APIs (BehaviourBuilder, telegramBotWithBehaviourAndLongPolling or similar)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "embed-bot-in-spring-backend",
+      "prompt": "Already have a Spring Boot backend with users, orders, etc. Want to add a Telegram bot that runs in the same process — users link Telegram via /start <token>, then get order updates pushed to chat and can /status <orderId>. Show how to wire ktgbotapi inside Spring (bean lifecycle, shared DB access, where the bot's coroutine scope lives), modular handler structure, and how to push outgoing messages from existing service code (e.g. OrderService notifying user).",
+      "expected_output": "Bot configuration as Spring @Configuration with @Bean returning bot instance, lifecycle tied to ApplicationContext, shared services injected into handlers, outgoing-message API exposed as Spring bean for OrderService.",
+      "files": [],
+      "assertions": [
+        "@Configuration class registers bot as @Bean",
+        "Bot lifecycle tied to ApplicationContext (init/destroy or ApplicationListener)",
+        "Spring services (e.g. UserRepository, OrderService) injected into bot handlers",
+        "Outgoing-message API exposed as Spring bean (e.g. TelegramNotifier) callable from OrderService",
+        "Coroutine scope strategy explicit (CoroutineScope tied to bot lifecycle)",
+        "ktgbotapi 33.x with Spring"
+      ]
+    }
+  ]
+}

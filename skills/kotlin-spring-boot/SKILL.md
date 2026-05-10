@@ -25,8 +25,62 @@ If asked for an older Spring Boot 3.x scaffold (e.g. for legacy compat), use 3.5
 
 ## Project Configuration
 
+### Persistence starter: JPA vs JDBC (real choice — pick deliberately)
+
+Spring Data ships two starters. Neither is "the default" — pick by what you actually want:
+
+- **`spring-boot-starter-data-jpa`** — entity-mapping + repositories backed by Hibernate. Pick when you want JPA entities (`@Entity`, `@OneToMany`, lazy loading, dirty checking, JPQL), automatic schema mapping, and the broad JPA ecosystem. Most REST-over-Postgres scaffolds land here.
+- **`spring-boot-starter-data-jdbc`** — lighter Spring Data JDBC, no Hibernate, no proxies, no lazy loading. Aggregates load eagerly, repositories are simpler, fewer surprises. Pick **only** when you're consciously avoiding Hibernate (e.g. predictable SQL, no ORM magic, simpler aggregate roots).
+
+If you don't have a reason to skip Hibernate — use JPA. If you've read both rows above and still want fewer moving parts — use JDBC.
+
+#### JPA variant (Hibernate)
+
+Kotlin classes are `final` by default; Hibernate needs entities open and requires a no-arg constructor. The `kotlin("plugin.jpa")` + `kotlin("plugin.allopen")` pair handles both.
+
 ```kotlin
-// build.gradle.kts
+// build.gradle.kts — JPA + Hibernate
+plugins {
+    kotlin("jvm") version "2.3.21"
+    kotlin("plugin.spring") version "2.3.21"
+    kotlin("plugin.jpa") version "2.3.21"      // no-arg ctor for @Entity/@MappedSuperclass/@Embeddable
+    kotlin("plugin.allopen") version "2.3.21"  // open up classes Hibernate needs to proxy
+    id("org.springframework.boot") version "4.0.6"
+    id("io.spring.dependency-management") version "1.1.7"
+}
+
+allOpen {
+    annotation("jakarta.persistence.Entity")
+    annotation("jakarta.persistence.MappedSuperclass")
+    annotation("jakarta.persistence.Embeddable")
+}
+
+kotlin {
+    compilerOptions {
+        freeCompilerArgs.addAll(
+            "-Xjsr305=strict",
+            "-Xannotation-default-target=param-property",
+        )
+        jvmTarget.set(JvmTarget.JVM_21)
+    }
+}
+
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    runtimeOnly("org.postgresql:postgresql")
+    // Jackson 3 (Spring Boot 4 default)
+    implementation("tools.jackson.module:jackson-module-kotlin")
+}
+```
+
+#### JDBC variant (no Hibernate)
+
+No JPA plugins needed — Spring Data JDBC works with regular Kotlin data classes.
+
+```kotlin
+// build.gradle.kts — Spring Data JDBC
 plugins {
     kotlin("jvm") version "2.3.21"
     kotlin("plugin.spring") version "2.3.21"
@@ -48,10 +102,13 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    runtimeOnly("org.postgresql:postgresql")
     // Jackson 3 (Spring Boot 4 default)
     implementation("tools.jackson.module:jackson-module-kotlin")
 }
 ```
+
+> Switching JDBC → JPA later: swap the starter, add `kotlin("plugin.jpa")` + `kotlin("plugin.allopen")` with the `allOpen { ... }` block above, then annotate aggregates with `@Entity`. Repository signatures usually need adjustments (Spring Data JDBC and JPA repos diverge on derived queries and aggregate semantics).
 
 ## Entity Pattern
 

@@ -469,10 +469,10 @@ class BotService(
     private val commandHandlers: CommandHandlers,
     private val callbackHandlers: CallbackHandlers,
 ) {
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    @PostConstruct
-    fun start() {
+    @EventListener(ApplicationReadyEvent::class)
+    fun onReady() {
         scope.launch {
             bot.buildBehaviourWithLongPolling {
                 with(commandHandlers) { register() }
@@ -485,6 +485,62 @@ class BotService(
     fun stop() = scope.cancel()
 }
 ```
+
+> **Why `ApplicationReadyEvent`, not `@PostConstruct`?** `@PostConstruct` fires while context still wiring — Flyway migrations may not have run, JPA EntityManagerFactory may not be ready, other beans uninitialized. First incoming Telegram update hits half-built app → `LazyInitializationException`, missing tables, NPEs from null-injected beans. `ApplicationReadyEvent` fires *after* entire `ApplicationContext` up: migrations done, all beans initialized, `CommandLineRunner`s finished. Bot starts polling only when backend genuinely ready to serve.
+>
+> **Why `Dispatchers.IO`, not `Dispatchers.Default`?** `Dispatchers.Default` sized for CPU work (typically `nCpu` threads). JPA/JDBC calls are *blocking I/O* — `repository.save(...)`, `entityManager.flush()`, raw `DataSource.getConnection()` all park the thread. Handler doing 3 DB lookups blocks 3 of your ~8 CPU threads; under load Default pool starves and bot stops responding. `Dispatchers.IO` designed for blocking work — default 64 threads, grows on demand. For pure async (Ktor client, WebFlux, R2DBC) Default fine; moment JPA/JDBC enters picture, switch to IO.
+
+### Pushing messages from non-DSL context
+
+Handlers receive `BehaviourContext` from DSL — but plenty of bot-relevant moments happen *outside* handler. `OrderService.markShipped(orderId)` called from REST controller needs to ping customer on Telegram. No `BehaviourContext` in scope, can't call `reply(...)`.
+
+Solution: thin facade bean wrapping `TelegramBot.execute(...)` directly (raw API, no DSL receiver needed).
+
+```kotlin
+// notifications/TelegramNotifier.kt
+@Component
+class TelegramNotifier(private val bot: TelegramBot) {
+    suspend fun notify(chatId: ChatId, text: String) {
+        bot.execute(SendTextMessage(chatId, text))
+    }
+
+    suspend fun notify(chatId: ChatId, text: String, replyMarkup: KeyboardMarkup) {
+        bot.execute(SendTextMessage(chatId, text, replyMarkup = replyMarkup))
+    }
+}
+
+// services/OrderService.kt — existing service, gains notification
+@Service
+class OrderService(
+    private val orderRepository: OrderRepository,
+    private val eventPublisher: ApplicationEventPublisher,
+) {
+    @Transactional
+    fun markShipped(orderId: Long) {
+        val order = orderRepository.findById(orderId).orElseThrow()
+        order.status = OrderStatus.SHIPPED
+        orderRepository.save(order)
+        eventPublisher.publishEvent(OrderShippedEvent(orderId, order.userChatId))
+    }
+}
+
+data class OrderShippedEvent(val orderId: Long, val chatId: Long)
+
+// notifications/OrderNotificationListener.kt
+@Component
+class OrderNotificationListener(
+    private val notifier: TelegramNotifier,
+) {
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    fun onShipped(event: OrderShippedEvent) = runBlocking {
+        notifier.notify(ChatId(event.chatId), "📦 Order #${event.orderId} shipped!")
+    }
+}
+```
+
+> **Why `@TransactionalEventListener(AFTER_COMMIT)`, not direct call from `markShipped`?** Direct call sends Telegram message *before* DB commit. Transaction rolls back (constraint violation, optimistic lock, app crash mid-method) → user already got "shipped!" but DB still says PENDING. `AFTER_COMMIT` phase fires only after transaction successfully committed — message reflects real state. If commit fails, listener never runs, no false notification. Bonus: keeps `OrderService` agnostic of Telegram (publishes domain event, listener handles delivery channel).
+>
+> **`runBlocking` in listener** acceptable here — listener invoked on caller thread *after* transaction, brief blocking on `bot.execute` (single HTTP call) won't hold DB connections. For high-volume notifications, replace with launch into `Dispatchers.IO` scope owned by listener bean.
 
 This variant gives you transactions (`@Transactional` on services called from handlers), metrics (`@Timed`), shared connection pools, and unified logging out of the box. The price is the Spring runtime — don't pick this for a standalone bot.
 

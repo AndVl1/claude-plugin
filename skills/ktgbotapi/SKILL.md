@@ -370,6 +370,22 @@ onChosenInlineResult { result ->
 
 ## FSM (Finite State Machine)
 
+**FSM imports** — easy 2 mis-import; pin these 4 ktgbotapi 33.1.0:
+
+```kotlin
+import dev.inmo.tgbotapi.extensions.behaviour_builder.fsm.*
+import dev.inmo.tgbotapi.extensions.behaviour_builder.fsm.strictlyOn
+import dev.inmo.micro_utils.fsm.common.State
+import dev.inmo.tgbotapi.extensions.behaviour_builder.expectations.waitText
+import dev.inmo.tgbotapi.extensions.behaviour_builder.buildBehaviourWithFSMAndStartLongPolling
+```
+
+Notes:
+- `State` lives in `micro_utils.fsm.common` (NOT `tgbotapi.*`) — separate artifact `dev.inmo:micro_utils.fsm.common`.
+- `strictlyOn` + FSM context builders live under `extensions.behaviour_builder.fsm` (artifact `tgbotapi.behaviour_builder.fsm`).
+- `waitText` / other `wait*` expectations live under `extensions.behaviour_builder.expectations`, NOT under `.fsm`.
+- `buildBehaviourWithFSMAndStartLongPolling` sits directly in `extensions.behaviour_builder` (parent package), not `.fsm`.
+
 ```kotlin
 // Define states
 sealed interface BotState : State {

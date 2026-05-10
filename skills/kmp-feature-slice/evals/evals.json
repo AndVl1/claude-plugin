@@ -1,0 +1,37 @@
+{
+  "skill_name": "kmp-feature-slice",
+  "evals": [
+    {
+      "id": 1,
+      "name": "scaffold-orders-module",
+      "prompt": "Adding a new feature module `feature/orders` to our KMP/Compose Multiplatform project. Need to list user's orders, view single order details, see order status. Following our compose-arch convention. Walk through the scaffolding step by step — module structure, build.gradle.kts dependencies, layered files (Screen/View/Component/UseCase/Repository), typed error sealed class, and what to verify at the end (build, tests). Don't do the full implementation — show the scaffolding workflow and what each file looks like at minimum.",
+      "expected_output": "Sequential workflow: create module dir, build.gradle.kts with KMP targets and required deps, layered files with stubs, sealed OrderError, build verification step explicitly mentioned.",
+      "files": [],
+      "assertions": [
+        "Output is procedural: numbered or sequential steps mirroring skill workflow",
+        "Lists exact module directory tree (e.g. feature/orders/src/commonMain/kotlin/...)",
+        "Provides build.gradle.kts with KMP targets and required deps",
+        "All compose-arch layers stubbed (Screen, View, Component, UseCase, Repository)",
+        "Defines a sealed OrderError (typed errors) class",
+        "Final step explicitly mentions build verification (./gradlew build or :feature:orders:build)",
+        "Mentions tests or test stubs (commonTest source set)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "add-settings-module",
+      "prompt": "Spinning up a Settings feature for our KMP app — toggle dark mode, change language, log out. Use our standard feature slice scaffolding workflow. Show the procedural steps a junior could follow without thinking about it. Include where errors get typed (logout can fail), how the Component wires to UseCases, and the build verification step.",
+      "expected_output": "Step-by-step scaffolding: module dir, build script, all layers with stubs, typed errors for fallible ops (logout), explicit build/verify step.",
+      "files": [],
+      "assertions": [
+        "Procedural sequenced steps (not a freeform essay)",
+        "Module directory tree explicit",
+        "build.gradle.kts shown with KMP targets/deps",
+        "All compose-arch layers stubbed",
+        "Logout (fallible op) has typed error sealed class",
+        "Component wires to UseCases (constructor injection visible)",
+        "Build verification step explicitly called out"
+      ]
+    }
+  ]
+}

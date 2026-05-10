@@ -132,7 +132,12 @@ class DefaultFeatureComponent(
     }
 
     @AssistedFactory
-    interface Factory : FeatureComponent.Factory
+    interface Factory {
+        operator fun invoke(
+            componentContext: ComponentContext,
+            onNavigate: (String) -> Unit,
+        ): DefaultFeatureComponent
+    }
 }
 ```
 
@@ -160,17 +165,33 @@ Forbidden:
 
 **File**: `<FeatureName><Action>UseCase.kt`
 
+Project-defined `AppResult<T>` (NOT `kotlin.Result`) — carries explicit message + cause for UI surfacing:
+
+```kotlin
+// common/result/AppResult.kt
+sealed class AppResult<out T> {
+    data class Success<T>(val value: T) : AppResult<T>()
+    data class Failure(val message: String, val cause: Throwable? = null) : AppResult<Nothing>()
+}
+
+inline fun <T> AppResult<T>.onSuccess(block: (T) -> Unit): AppResult<T> {
+    if (this is AppResult.Success) block(value); return this
+}
+inline fun <T> AppResult<T>.onError(block: (String, Throwable?) -> Unit): AppResult<T> {
+    if (this is AppResult.Failure) block(message, cause); return this
+}
+```
+
 ```kotlin
 @Inject
 class GetFeatureDataUseCase(
     private val repository: FeatureRepository
 ) {
-    suspend fun execute(params: Params): Result<FeatureData> {
+    suspend fun execute(params: Params): AppResult<FeatureData> {
         return try {
-            val data = repository.getData(params.id)
-            Result.success(data)
+            AppResult.Success(repository.getData(params.id))
         } catch (e: Exception) {
-            Result.failure(e)
+            AppResult.Failure(e.message ?: "Unknown error", e)
         }
     }
 }
@@ -178,8 +199,8 @@ class GetFeatureDataUseCase(
 
 ### Use Case Rules
 - **One class per file**
-- Returns only `Result<T>`
-- Single `execute(params): Result<T>` function
+- Returns only `AppResult<T>`
+- Single `execute(params): AppResult<T>` function
 - **NOT** an operator function
 - All error handling happens here
 - Dependencies:
@@ -256,9 +277,13 @@ class FeatureRemoteDataSource(
   - Platform APIs
   - Network client (Ktor)
 
+**KMP HTTP client**: in `commonMain` DataSources use **Ktor `HttpClient`** — cross-platform. **OkHttp is JVM-only** — only acceptable in `jvmMain`/`androidMain` source sets. Don't reference `OkHttpClient` from `commonMain`.
+
 ## ViewState and Events
 
 **File**: `<FeatureName>ViewState.kt`
+
+Canonical 3-state template — fits **read-mostly** screens (lists, details, dashboards):
 
 ```kotlin
 sealed class FeatureViewState {
@@ -267,6 +292,38 @@ sealed class FeatureViewState {
     data class Error(val message: String) : FeatureViewState()
 }
 ```
+
+### Forms / Edit Flows (richer states)
+
+3-state template wipes draft input on save failure — unacceptable for forms. Two options:
+
+**Option A**: extend Success with `inlineError`:
+
+```kotlin
+data class Editing(
+    val draft: FeatureDraft,
+    val saving: Boolean = false,
+    val inlineError: String? = null,
+) : FeatureViewState()
+```
+
+**Option B**: separate `Editing` state alongside Loading/Success/Error:
+
+```kotlin
+sealed class FormViewState {
+    data object Loading : FormViewState()
+    data class Editing(
+        val draft: FeatureDraft,
+        val saving: Boolean = false,
+        val generalError: String? = null,
+        val fieldErrors: Map<String, String> = emptyMap(),
+    ) : FormViewState()
+    data class Saved(val id: String) : FormViewState()
+    data class Error(val message: String) : FormViewState()  // fatal load errors only
+}
+```
+
+Rule: save failure → keep draft, set `inlineError`/`generalError`. Never drop user input.
 
 **File**: `<FeatureName>ViewEvent.kt`
 
@@ -348,7 +405,7 @@ class FeatureModule {
 | Serialization | Only Kotlinx Serialization |
 | JSON | Single instance via DI |
 | Repository return | Clean domain data |
-| UseCase return | Always `Result<T>` (or `Result<Flow<T>>`) |
+| UseCase return | Always `AppResult<T>` (or `AppResult<Flow<T>>`) |
 | Error handling | All in UseCase (where Result is created) |
 | State | Never use `remember` in View - state from Component |
 
@@ -393,7 +450,7 @@ Before completing a feature, verify:
 - [ ] View has no remember/side effects
 - [ ] Component handles all logic
 - [ ] All navigation in Component via Decompose
-- [ ] UseCases return Result<T>
+- [ ] UseCases return AppResult<T>
 - [ ] One class per file
 - [ ] No god files
 - [ ] UI nesting <= 3 levels
