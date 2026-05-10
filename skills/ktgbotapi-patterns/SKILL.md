@@ -1,6 +1,6 @@
 ---
 name: ktgbotapi-patterns
-description: Telegram bot architecture patterns (ktgbotapi 33.x + Koin 4.x) — project structure, modular handlers, DI, callback models, keyboards, utils. Always use the versions listed below; never regress to ktgbotapi 31.x or Koin 3.x even if your training data is older.
+description: Telegram bot architecture patterns (ktgbotapi 33.x) — project structure, modular handlers, DI via Metro (standalone) or Spring (embedded in backend), callback models, keyboards, utils. Always use the versions listed below; never regress to ktgbotapi 31.x. Koin is no longer recommended — use Metro for compile-time safety.
 ---
 
 # KTgBotAPI Architecture Patterns
@@ -12,19 +12,23 @@ Patterns for organizing Telegram bot projects with ktgbotapi.
 | Component | Version | Notes |
 |---|---|---|
 | ktgbotapi | **33.1.0** | See `ktgbotapi` skill for v32→v33 breaking changes (BotToken value class, Unit return types, Poll API). |
-| Koin | **4.2.1** | KMP-friendly, `singleOf` / `factoryOf` constructor DSL still valid. Do not write Koin 3.x (`org.koin:koin-core:3.x` → wrong). |
+| Metro | **1.0.0** | Default DI for standalone bots — compile-time graph, no runtime crashes. See `metro-di-mobile` skill. |
+| Spring Boot | **3.4.x** | Use Spring DI when bot lives inside a full backend (sharing services, DB, observability). See `kotlin-spring-boot` skill. |
 | Ktor client | **3.4.3** | See `ktor-client` skill for client patterns. |
 | Kotlin | **2.3.21** | |
+
+> **Koin is intentionally not in this skill anymore.** Earlier revisions documented Koin 4.x as the default. We removed it because: (1) compile-time DI catches missing bindings before deploy — Telegram bots can run for weeks without hitting a code path, so a runtime DI miss is found by users, not CI; (2) for monostack setups (mobile + bot + backend on Metro), one DI framework everywhere wins over two; (3) when the bot is part of a Spring backend, Spring DI is already there. If a project genuinely needs Koin (KMP bot sharing modules with a Koin-driven mobile app, or hot-reload module swapping), apply Koin manually — but don't take it from this skill.
 
 ## Project Structure
 
 ```
 src/main/kotlin/com/example/bot/
 ├── Application.kt              # Entry point
+├── di/
+│   ├── BotGraph.kt             # Metro @DependencyGraph (standalone)
+│   └── BotPlatformModule.kt    # @BindingContainer with @Provides for HttpClient, Json, env config
 ├── config/
-│   ├── BotConfig.kt            # Bot configuration
-│   ├── HttpClientConfig.kt     # Ktor client setup
-│   └── KoinModules.kt          # DI modules
+│   └── BotConfig.kt            # Bot configuration value class
 ├── handlers/
 │   ├── CommandHandlers.kt      # /start, /help, etc.
 │   ├── MessageHandlers.kt      # Text message handlers
@@ -50,59 +54,82 @@ src/main/kotlin/com/example/bot/
     └── Formatters.kt           # Text formatting helpers
 ```
 
-> **Note:** For backend API communication patterns, see the `ktor-client` skill.
+> **Note:** For backend API communication patterns, see the `ktor-client` skill. Embedded-in-Spring deployment uses Spring's project structure (`@Service`, `@Configuration`) instead of `di/` — see "DI: Spring Boot variant" below.
 
 ## Modular Handler Pattern
 
 ### Application Entry Point
 
 ```kotlin
-// Application.kt
+// Application.kt — standalone bot with Metro
 suspend fun main() {
-    val bot = telegramBot(System.getenv("BOT_TOKEN"))
+    val graph = createGraph<BotGraph>()
+    val bot = graph.telegramBot
 
     bot.buildBehaviourWithLongPolling(
         defaultExceptionsHandler = { logger.error("Bot error", it) }
     ) {
-        setupCommandHandlers()
-        setupMessageHandlers()
-        setupCallbackHandlers()
-        setupMediaHandlers()
+        with(graph.commandHandlers) { register() }
+        with(graph.messageHandlers) { register() }
+        with(graph.callbackHandlers) { register() }
+        with(graph.mediaHandlers) { register() }
     }.join()
 }
 ```
 
+Each handler class exposes `suspend fun BehaviourContext.register()` as an extension on its enclosing class — see "Modular Handler Pattern" below.
+
 ### Handler Modules
+
+Handlers are classes with constructor-injected dependencies. They expose `register()` as an extension on `BehaviourContext`, which keeps the DSL receiver while still letting the handler hold injected services.
 
 ```kotlin
 // handlers/CommandHandlers.kt
-suspend fun BehaviourContext.setupCommandHandlers() {
-    onCommand("start") { message ->
-        reply(message, "Welcome!", replyMarkup = ReplyKeyboards.main())
-    }
+@Inject
+class CommandHandlers(
+    private val userService: UserService,
+) {
+    suspend fun BehaviourContext.register() {
+        onCommand("start") { message ->
+            reply(message, "Welcome!", replyMarkup = ReplyKeyboards.main())
+        }
 
-    onCommand("help") { message ->
-        reply(message, HelpTexts.commands())
-    }
+        onCommand("help") { message ->
+            reply(message, HelpTexts.commands())
+        }
 
-    onDeepLink { message, deepLink ->
-        handleDeepLink(message, deepLink)
+        onCommand("profile") { message ->
+            val user = userService.findByChatId(message.chat.id.chatId)
+            reply(message, user?.let { "Name: ${it.name}" } ?: "Not registered")
+        }
+
+        onDeepLink { message, deepLink -> handleDeepLink(message, deepLink) }
     }
 }
 
 // handlers/MessageHandlers.kt
-suspend fun BehaviourContext.setupMessageHandlers() {
-    onText(initialFilter = { it.content.text == "📋 Menu" }) { showMenu(it) }
-    onText(initialFilter = { it.content.text == "⚙️ Settings" }) { showSettings(it) }
+@Inject
+class MessageHandlers {
+    suspend fun BehaviourContext.register() {
+        onText(initialFilter = { it.content.text == "📋 Menu" }) { showMenu(it) }
+        onText(initialFilter = { it.content.text == "⚙️ Settings" }) { showSettings(it) }
+    }
 }
 
 // handlers/CallbackHandlers.kt
-suspend fun BehaviourContext.setupCallbackHandlers() {
-    onDataCallbackQuery(Regex("menu:.*")) { handleMenuCallback(it) }
-    onDataCallbackQuery(Regex("item:.*")) { handleItemCallback(it) }
-    onDataCallbackQuery(Regex("page:.*")) { handlePaginationCallback(it) }
+@Inject
+class CallbackHandlers(
+    private val api: BackendApiService,
+) {
+    suspend fun BehaviourContext.register() {
+        onDataCallbackQuery(Regex("menu:.*")) { handleMenuCallback(it) }
+        onDataCallbackQuery(Regex("item:.*")) { handleItemCallback(it, api) }
+        onDataCallbackQuery(Regex("page:.*")) { handlePaginationCallback(it) }
+    }
 }
 ```
+
+> **Why extension on `BehaviourContext` inside a class?** ktgbotapi's DSL (`onCommand`, `onText`, ...) requires `BehaviourContext` as receiver. Free-standing extension functions can't carry constructor state, so we put the extension *inside* the class — `register()` is a member extension, the class holds dependencies, and the DSL receiver flows in at the call site (`with(graph.commandHandlers) { register() }`).
 
 ## Callback Data Models
 
@@ -338,62 +365,130 @@ private suspend fun BehaviourContextWithFSM<BotState>.waitTextOrCancel(
 }
 ```
 
-## Dependency Injection with Koin
+## Dependency Injection
+
+### Decision tree
+
+| Deployment | DI choice |
+|---|---|
+| Standalone bot (own JVM process, just bot logic + HTTP client) | **Metro** |
+| Bot is part of a Spring Boot backend (shares DB, services, observability with REST/gRPC layer) | **Spring DI** |
+| Bot is part of a KMP monostack with mobile + web on Metro | **Metro** (single DI everywhere) |
+| Bot is a Ktor server with embedded handlers | Metro |
+
+The discriminator is "is there already a DI container running in this process?". If yes (Spring), use it. If no, use Metro.
+
+### Metro variant (standalone)
 
 ```kotlin
-// config/KoinModules.kt
-val botModule = module {
-    single { telegramBot(getProperty("BOT_TOKEN")) }
-}
+// di/BotPlatformModule.kt
+@BindingContainer
+object BotPlatformModule {
+    @Provides
+    fun provideBotConfig(): BotConfig = BotConfig(
+        token = System.getenv("BOT_TOKEN") ?: error("BOT_TOKEN not set"),
+        backendUrl = System.getenv("BACKEND_URL") ?: error("BACKEND_URL not set"),
+        apiKey = System.getenv("API_KEY") ?: error("API_KEY not set"),
+    )
 
-// HTTP client for backend communication (see ktor-client skill)
-val httpModule = module {
-    single {
-        HttpClient(CIO) {
-            install(ContentNegotiation) { json() }
-            install(HttpTimeout) { requestTimeoutMillis = 30_000 }
-            defaultRequest {
-                url(getProperty("BACKEND_URL"))
-                header("X-API-Key", getProperty("API_KEY"))
-            }
+    @Provides
+    fun provideTelegramBot(config: BotConfig): TelegramBot = telegramBot(config.token)
+
+    @Provides
+    fun provideJson(): Json = Json { ignoreUnknownKeys = true }
+
+    @Provides
+    fun provideHttpClient(config: BotConfig, json: Json): HttpClient = HttpClient(CIO) {
+        install(ContentNegotiation) { json(json) }
+        install(HttpTimeout) { requestTimeoutMillis = 30_000 }
+        defaultRequest {
+            url(config.backendUrl)
+            header("X-API-Key", config.apiKey)
         }
     }
-    singleOf(::BackendApiService)
 }
 
-val serviceModule = module {
-    singleOf(::UserService)
-    singleOf(::NotificationService)
+// di/BotGraph.kt
+@DependencyGraph(bindingContainers = [BotPlatformModule::class])
+interface BotGraph {
+    val telegramBot: TelegramBot
+    val commandHandlers: CommandHandlers
+    val messageHandlers: MessageHandlers
+    val callbackHandlers: CallbackHandlers
+    val mediaHandlers: MediaHandlers
 }
 
-// Application.kt
-suspend fun main() {
-    startKoin {
-        properties(mapOf(
-            "BOT_TOKEN" to System.getenv("BOT_TOKEN"),
-            "BACKEND_URL" to System.getenv("BACKEND_URL"),
-            "API_KEY" to System.getenv("API_KEY")
-        ))
-        modules(botModule, httpModule, serviceModule)
+// Services and handlers carry @Inject — Metro auto-wires:
+@Inject class UserService(private val api: BackendApiService)
+@Inject class BackendApiService(private val httpClient: HttpClient, private val json: Json)
+// CommandHandlers, etc. — see "Handler Modules" above
+```
+
+`createGraph<BotGraph>()` is called once in `main()`. The graph instance is process-wide; the bot lives until SIGTERM. No graph teardown needed unless you have per-update scopes (which you usually don't — handlers are stateless).
+
+> **Per-message scope?** Telegram updates are inherently stateless from the bot's perspective. If you need per-update context (request ID, user-scoped logger), pass it through the DSL closure or `BehaviourContext` extensions — don't reach for `@AssistedInject` unless you have a real reason. Most bots never need it.
+
+### Spring Boot variant (embedded in backend)
+
+When the bot lives inside a full Spring Boot service (sharing JPA repositories, business services, Micrometer metrics, the same `application.yml`), use Spring DI directly. No Metro on top.
+
+```kotlin
+// config/TelegramBotConfig.kt
+@ConfigurationProperties(prefix = "telegram")
+data class TelegramProperties(
+    val token: String,
+    val adminIds: List<Long> = emptyList(),
+)
+
+@Configuration
+@EnableConfigurationProperties(TelegramProperties::class)
+class TelegramBotConfig {
+    @Bean
+    fun telegramBot(props: TelegramProperties): TelegramBot = telegramBot(props.token)
+}
+
+// handlers/CommandHandlers.kt
+@Component
+class CommandHandlers(
+    private val userService: UserService,         // @Service from main backend
+    private val orderRepository: OrderRepository, // @Repository from JPA layer
+) {
+    suspend fun BehaviourContext.register() {
+        onCommand("start") { /* ... */ }
+        onCommand("orders") { message ->
+            val orders = orderRepository.findRecent(message.chat.id.chatId)
+            reply(message, formatOrders(orders))
+        }
+    }
+}
+
+// BotService.kt — owns bot lifecycle as a Spring bean
+@Service
+class BotService(
+    private val bot: TelegramBot,
+    private val commandHandlers: CommandHandlers,
+    private val callbackHandlers: CallbackHandlers,
+) {
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+
+    @PostConstruct
+    fun start() {
+        scope.launch {
+            bot.buildBehaviourWithLongPolling {
+                with(commandHandlers) { register() }
+                with(callbackHandlers) { register() }
+            }.join()
+        }
     }
 
-    val bot: TelegramBot = get()
-    val apiService: BackendApiService = get()
-
-    bot.buildBehaviourWithLongPolling {
-        setupCommandHandlers(apiService)
-        setupCallbackHandlers(apiService)
-    }.join()
-}
-
-// Pass dependencies to handlers
-suspend fun BehaviourContext.setupCommandHandlers(api: BackendApiService) {
-    onCommand("profile") { message ->
-        val user = api.getUser(message.chat.id.chatId)
-        reply(message, user?.let { "Name: ${it.name}" } ?: "Not registered")
-    }
+    @PreDestroy
+    fun stop() = scope.cancel()
 }
 ```
+
+This variant gives you transactions (`@Transactional` on services called from handlers), metrics (`@Timed`), shared connection pools, and unified logging out of the box. The price is the Spring runtime — don't pick this for a standalone bot.
+
+For Spring patterns themselves, see `kotlin-spring-boot` and `kotlin-spring-patterns` skills.
 
 ## Useful Extensions
 
@@ -553,52 +648,11 @@ suspend fun testBehaviourContext(
 }
 ```
 
-## Spring Boot Integration
+## Integration with other skills
 
-```kotlin
-// config/TelegramBotConfig.kt
-@ConfigurationProperties(prefix = "telegram")
-data class TelegramProperties(
-    val token: String,
-    val adminIds: List<Long> = emptyList()
-)
-
-@Configuration
-@EnableConfigurationProperties(TelegramProperties::class)
-class TelegramBotConfig(private val props: TelegramProperties) {
-
-    @Bean
-    fun telegramBot(): TelegramBot = telegramBot(props.token)
-
-    @Bean
-    fun adminIds(): List<Long> = props.adminIds
-}
-
-// BotService.kt
-@Service
-class BotService(
-    private val bot: TelegramBot,
-    private val userService: UserService,
-    private val adminIds: List<Long>
-) {
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
-    @PostConstruct
-    fun start() {
-        scope.launch {
-            bot.buildBehaviourWithLongPolling {
-                setupCommandHandlers(userService, adminIds)
-            }.join()
-        }
-    }
-
-    @PreDestroy
-    fun stop() {
-        scope.cancel()
-    }
-
-    suspend fun sendNotification(chatId: Long, text: String) {
-        bot.sendMessage(ChatId(chatId), text)
-    }
-}
-```
+| Skill | When to load |
+|---|---|
+| `ktgbotapi` | Always — base bot API (BotToken, behaviour DSL, message types). |
+| `metro-di-mobile` | Standalone bot DI variant. |
+| `kotlin-spring-boot`, `kotlin-spring-patterns` | Embedded-in-backend variant — service layer, transactions, observability. |
+| `ktor-client` | All HTTP calls to backend / external APIs. |
