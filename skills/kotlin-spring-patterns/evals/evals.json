@@ -1,0 +1,36 @@
+{
+  "skill_name": "kotlin-spring-patterns",
+  "evals": [
+    {
+      "id": 1,
+      "name": "orders-rest-controller",
+      "prompt": "Implementing the orders REST API in our Spring Boot Kotlin service. Endpoints: POST /orders (create), GET /orders/{id}, GET /orders?status=...&page=&size=. Need request validation (Jakarta), proper error responses (problem+json), and the controller-service-repo split we follow. Show controller, DTOs, validation annotations, and how errors translate to HTTP responses. Don't show the full service body, just the layering.",
+      "expected_output": "@RestController with @Valid request bodies, DTOs with jakarta.validation annotations, ResponseEntity or @ResponseStatus exceptions, problem+json error mapping via @ControllerAdvice or ProblemDetail, separation of controller/service/repository.",
+      "files": [],
+      "assertions": [
+        "@RestController class with all three endpoints (POST /orders, GET /orders/{id}, GET /orders with query params)",
+        "Request DTOs use jakarta.validation annotations (@NotBlank, @Positive, @Valid etc.)",
+        "Controller methods use @Valid on request bodies",
+        "Error handling produces problem+json (ProblemDetail or @ControllerAdvice with ResponseEntity<ProblemDetail>)",
+        "Pagination params (page/size) handled (Pageable or explicit params)",
+        "Layer split visible: controller delegates to service interface, not data layer directly",
+        "Spring Boot 4.x APIs (no deprecated patterns)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "user-service-transactional",
+      "prompt": "Service-layer code for user management in Kotlin Spring Boot. Operations: createUser (insert + send welcome email), changeEmail (update + audit log + invalidate sessions), deactivateUser (soft delete + cascade flag inventory). Each needs proper transactional boundaries — what runs inside the tx vs after, propagation, rollback rules. Show the @Service class with each method annotated correctly and explain the boundary choices.",
+      "expected_output": "@Service class, @Transactional with appropriate propagation (REQUIRED, REQUIRES_NEW where relevant), side effects (email, audit) explicitly placed inside or outside tx with reasoning, rollback rules for checked exceptions if needed.",
+      "files": [],
+      "assertions": [
+        "@Service class with three methods (createUser, changeEmail, deactivateUser)",
+        "@Transactional annotations on methods (or class)",
+        "At least one method uses propagation other than default (REQUIRES_NEW or NOT_SUPPORTED) where it makes sense",
+        "Side effects (email send, audit log) discussed in tx context — either inside tx via TransactionalEventListener / outside tx explicitly",
+        "Rollback rules addressed (rollbackFor or noRollbackFor where Kotlin checked exceptions concerns arise) or explicit reasoning given",
+        "Reasoning behind boundary choice explained per method"
+      ]
+    }
+  ]
+}

@@ -179,6 +179,46 @@ client.get("protected/resource") {
 }
 ```
 
+### Bearer Token with Refresh
+
+Use separate `tokenClient` without Auth plugin — keeps refresh call out of bearer interceptor, so 401 from IdP can't recurse. Inside `refreshTokens` block call `markAsRefreshTokenRequest()` — prevents infinite refresh loop if IdP itself returns 401.
+
+```kotlin
+// Dedicated client for token endpoint — NO Auth plugin installed.
+val tokenClient = HttpClient(CIO) {
+    install(ContentNegotiation) { json() }
+}
+
+val apiClient = HttpClient(CIO) {
+    install(ContentNegotiation) { json() }
+
+    install(Auth) {
+        bearer {
+            loadTokens {
+                tokenStorage.load()?.let { BearerTokens(it.access, it.refresh) }
+            }
+
+            refreshTokens {
+                // markAsRefreshTokenRequest: stops bearer interceptor from
+                // re-triggering refresh on a 401 from refresh endpoint itself.
+                val refreshed: TokenResponse = tokenClient.post("https://idp.example.com/oauth/token") {
+                    contentType(ContentType.Application.Json)
+                    setBody(RefreshRequest(oldTokens?.refreshToken ?: ""))
+                    markAsRefreshTokenRequest()
+                }.body()
+
+                tokenStorage.save(refreshed)
+                BearerTokens(refreshed.accessToken, refreshed.refreshToken)
+            }
+
+            sendWithoutRequest { request ->
+                request.url.host == "api.your-project.example.com"
+            }
+        }
+    }
+}
+```
+
 ### API Key Header
 
 ```kotlin
@@ -406,6 +446,12 @@ onCommand("profile") { message ->
 
 ## Retry Logic
 
+### Caveat: `HttpRequestRetry` vs `expectSuccess = true`
+
+When `expectSuccess = true` (or `HttpResponseValidator` throws on non-2xx), server errors throw before retry plugin sees response — retry condition never evaluates. Result: no retry on 5xx despite `retryOnServerErrors`.
+
+Fix: keep `expectSuccess = false` (default) on client when using retry, validate status manually after the call. Or override per-request: `client.get("...") { expectSuccess = false }`. If you need both global validator and retry, install retry first and let validator run only on terminal response.
+
 ### Global Retry Configuration
 
 ```kotlin
@@ -529,6 +575,60 @@ suspend fun BehaviourContext.setupCommandHandlers(api: BackendApiService) {
     }
 }
 ```
+
+## Spring Boot Integration
+
+Embed Ktor client in Spring backend as singleton bean. Spring manages lifecycle — close client on context shutdown via `@PreDestroy`.
+
+```kotlin
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.serialization.kotlinx.json.*
+import jakarta.annotation.PreDestroy
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
+
+@Configuration
+class HttpClientConfig(
+    @Value("\${external.api.base-url}") private val baseUrl: String,
+    @Value("\${external.api.key}") private val apiKey: String,
+) {
+
+    private lateinit var client: HttpClient
+
+    @Bean
+    fun apiClient(): HttpClient {
+        client = HttpClient(CIO) {
+            install(ContentNegotiation) { json() }
+            install(HttpTimeout) {
+                requestTimeoutMillis = 30_000
+                connectTimeoutMillis = 10_000
+            }
+            defaultRequest {
+                url(baseUrl)
+                header("X-API-Key", apiKey)
+            }
+        }
+        return client
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        if (::client.isInitialized) client.close()
+    }
+}
+
+// Inject into services as plain dependency.
+@Service
+class BackendApiService(private val apiClient: HttpClient) {
+    suspend fun getUser(id: Long): User = apiClient.get("users/$id").body()
+}
+```
+
+Pointer only — for full Spring patterns see `kotlin-spring-boot` skill.
 
 ## Testing
 

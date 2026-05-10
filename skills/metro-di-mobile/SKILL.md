@@ -415,26 +415,25 @@ val optionalInterceptors: Set<Interceptor>
 
 ### Graph Extensions (Subcomponents)
 
-Replace `@Extends`/`isExtendable` with `@GraphExtension` (since 0.4.0):
+Metro 1.0 surface: child graph = `@GraphExtension`-only iface; nested factory = `@GraphExtension.Factory`. Don't double-annotate w/ `@DependencyGraph` — root graph keeps `@DependencyGraph` + `@DependencyGraph.Factory`, extension keeps `@GraphExtension` + `@GraphExtension.Factory`. Replaces older `@Extends`/`isExtendable` (since 0.4.0).
 
 ```kotlin
-// Parent graph must declare extension points
+// Root graph: @DependencyGraph (+ @DependencyGraph.Factory if it has a factory)
 @DependencyGraph
 interface AppGraph {
     val authRepository: AuthRepository
 
-    // Declare extension factory
+    // Expose extension factory accessor — parent creates child via this
     val sessionGraphFactory: SessionGraph.Factory
 }
 
-// Child graph uses @GraphExtension
+// Extension graph: @GraphExtension only — NOT co-annotated with @DependencyGraph
 @GraphExtension
-@DependencyGraph
 interface SessionGraph {
     val sessionManager: SessionManager
 
-    // Factory interface within child graph
-    @DependencyGraph.Factory
+    // Nested factory uses @GraphExtension.Factory (matches parent annotation)
+    @GraphExtension.Factory
     interface Factory {
         fun create(@Provides sessionToken: String): SessionGraph
     }

@@ -1,0 +1,38 @@
+{
+  "skill_name": "compose-arch",
+  "evals": [
+    {
+      "id": 1,
+      "name": "user-profile-feature-slice",
+      "prompt": "We're adding a User Profile screen to our Compose Multiplatform app. Need view/edit modes — user sees their name/email/avatar, can tap edit, change name and avatar, save. Errors from API should show inline. Scaffold the feature folder using our compose-arch layering — Screen, View, Component, UseCase, Repository. Show file tree and minimal code per file (signatures + 1-2 lines body). Don't bother with Android/iOS bootstrapping or Gradle.",
+      "expected_output": "Feature module skeleton with explicit Screen/View/Component/UseCase/Repository layering. Component holds state and handles intents; View is stateless composable; UseCase is interface + impl; Repository is interface + impl.",
+      "files": [],
+      "assertions": [
+        "Output names all five layers explicitly: Screen, View, Component, UseCase, Repository",
+        "Component holds state (StateFlow / MutableStateFlow or equivalent observable) and exposes intent functions",
+        "View is stateless @Composable receiving state + callbacks (no remember of business state)",
+        "UseCase is interface + impl, returns domain types (or Result/typed error)",
+        "Repository is interface + impl, repository handles network/persistence",
+        "Errors from API surface back to UI via state (sealed error type or error string in state)",
+        "File tree is explicit (directory + filenames listed)",
+        "No HTTP/JSON parsing inside @Composable or Component"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "refactor-god-screen",
+      "prompt": "I have a CartScreen.kt that does everything in one composable: keeps mutable state with `remember { mutableStateOf(...) }`, calls our `OkHttpClient.newCall(...)` directly inside a `LaunchedEffect`, parses JSON inline, and writes results to a `cartItems` list. It's about 280 lines. We use Compose Multiplatform and follow your Screen/View/Component/UseCase/Repository layering. Walk me through how to break this apart — what goes where, what types/interfaces I'd introduce, and how state and side-effects flow across layers. Don't write the full refactor, just the design and migration plan with short code stubs for each layer.",
+      "expected_output": "Migration plan that names the layers, moves HTTP call into Repository, business logic into UseCase, state into Component, UI into View, with explicit one-direction data flow.",
+      "files": [],
+      "assertions": [
+        "Migration plan addresses each layer separately (Repository, UseCase, Component, View, Screen)",
+        "OkHttp call moved into Repository implementation",
+        "Mutable state moved out of @Composable into Component",
+        "Side-effect (network) lives in Repository or invoked via UseCase, not in LaunchedEffect inside View",
+        "JSON parsing moved out of UI layer (Repository or serialization layer)",
+        "Plan shows one-direction data flow: View -> Component (intents) -> UseCase -> Repository",
+        "Includes code stubs/signatures per layer (not just prose)"
+      ]
+    }
+  ]
+}

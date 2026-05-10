@@ -1,0 +1,38 @@
+{
+  "skill_name": "kotlin-spring-boot",
+  "evals": [
+    {
+      "id": 1,
+      "name": "init-inventory-service",
+      "prompt": "Bootstrap a new Spring Boot service called `inventory-service` for tracking SKUs. Need: REST endpoints for CRUD on Item, JPA persistence (Postgres), validation, OpenAPI docs. Latest Spring Boot + latest stable Kotlin. Show me build.gradle.kts (Kotlin DSL), application.yml, the application class, and a sample @RestController with one endpoint. Pin versions explicitly.",
+      "expected_output": "Spring Boot 4.0.x and Kotlin 2.2.x (or current stable) versions, build.gradle.kts uses Kotlin DSL with kotlin(\"jvm\"), kotlin(\"plugin.spring\"), spring-boot-starter-* deps, application.yml, @SpringBootApplication, @RestController.",
+      "files": [],
+      "assertions": [
+        "Spring Boot version pinned to 4.0.x",
+        "Kotlin version pinned to 2.2.x or current stable per skill",
+        "build.gradle.kts uses Kotlin DSL (not Groovy)",
+        "Plugins block has kotlin(\"jvm\"), kotlin(\"plugin.spring\"), org.springframework.boot",
+        "Deps include spring-boot-starter-web, spring-boot-starter-data-jpa, spring-boot-starter-validation",
+        "Postgres driver included (org.postgresql:postgresql)",
+        "application.yml shown with datasource + jpa config",
+        "Sample @RestController with at least one mapped endpoint",
+        "@SpringBootApplication class shown"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "add-jooq-to-existing",
+      "prompt": "Got an existing Spring Boot service that uses JPA, but we want to migrate read paths to JOOQ for type-safe SQL on a few hot endpoints. Postgres. Show the gradle changes, DataSource/DSLContext config beans, and a sample repository using JOOQ generated records alongside an existing JPA repo. Use current Spring Boot.",
+      "expected_output": "build.gradle.kts plugin and dependency for JOOQ + matching Spring Boot version, generated sources config, DSLContext bean, sample @Repository class using JOOQ DSLContext.",
+      "files": [],
+      "assertions": [
+        "JOOQ Gradle plugin or dependencies pinned to version compatible with current Spring Boot",
+        "DataSource bean configuration shown (or relies on Spring Boot auto-config)",
+        "DSLContext bean exposed",
+        "Sample @Repository uses DSLContext and references a generated record/table",
+        "Acknowledges JPA still in use alongside JOOQ (no replacement)",
+        "Spring Boot 4.0.x context preserved"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "skill_name": "ktgbotapi",
+  "evals": [
+    {
+      "id": 1,
+      "name": "photo-with-caption-handler",
+      "prompt": "Telegram bot handler in ktgbotapi: when user sends a photo with a caption, reply with bold-formatted message echoing the caption, and attach an inline keyboard with two buttons — 'Approve' and 'Reject', each carrying the original message id as callback data. Show the handler code using current ktgbotapi APIs.",
+      "expected_output": "BehaviourBuilder usage (onPhoto or onContentMessage with PhotoContent), reply with MarkdownV2/HTML/parseMode, InlineKeyboardMarkup with CallbackDataInlineKeyboardButton including message id, ktgbotapi 33.x imports.",
+      "files": [],
+      "assertions": [
+        "Uses BehaviourBuilder (onPhoto, onContentMessage<PhotoContent>, or onMedia)",
+        "Replies with bold formatted text (MarkdownV2/HTML parseMode or sendTextMessage with formatting)",
+        "Inline keyboard built with inlineKeyboard {} DSL or InlineKeyboardMarkup",
+        "Two CallbackDataInlineKeyboardButton entries for Approve/Reject",
+        "Original message id propagated into callback data",
+        "ktgbotapi 33.x package imports (dev.inmo.tgbotapi.*)"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "fsm-collect-user-info",
+      "prompt": "Build a 4-step FSM dialog with ktgbotapi: ask name, ask phone, ask address, show summary, ask confirm yes/no. On yes, save and send 'Done'. On no, restart from name. Show sealed State classes, strictlyOn handlers per state, and how the dialog kicks off on /start.",
+      "expected_output": "Sealed State subclasses for each step, strictlyOn<State> handlers, state transitions via context.next(...) or similar, dialog initiation from /start command.",
+      "files": [],
+      "assertions": [
+        "Sealed State class with 4+ subclasses for dialog steps",
+        "strictlyOn<State.X> handlers per state",
+        "State transitions return next state (e.g. State.CollectPhone)",
+        "Confirm step branches to save or restart based on user response",
+        "Dialog initiation from /start command (onCommand or onStart)",
+        "ktgbotapi 33.x APIs"
+      ]
+    }
+  ]
+}

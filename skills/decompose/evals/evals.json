@@ -1,0 +1,37 @@
+{
+  "skill_name": "decompose",
+  "evals": [
+    {
+      "id": 1,
+      "name": "bottom-nav-three-tabs",
+      "prompt": "Setting up navigation for a KMP Compose app with bottom nav: Home / Catalog / Profile. Catalog has its own internal stack (list -> details -> reviews). Profile has settings as a child. Wire this with Decompose: define the configuration sealed classes, the root component, child stacks per tab, and how I'd pass a productId from Catalog list to details. Show the wiring — no UI code needed.",
+      "expected_output": "Decompose RootComponent + bottom-nav child slots/pages, Catalog child stack with sealed Config, productId argument carried via Config.Details(productId).",
+      "files": [],
+      "assertions": [
+        "Defines sealed Configuration class(es) at root and per-tab",
+        "Uses Decompose ChildStack or ChildPages/ChildSlot for bottom nav",
+        "Catalog has its own ChildStack with internal Configs (List, Details, Reviews)",
+        "productId is carried as a property on the sealed Config (e.g. Config.Details(productId: String))",
+        "Root component class shown with childStack/childSlot wiring",
+        "Uses StackNavigation.push/replaceAll/pop for transitions",
+        "Imports come from com.arkivanov.decompose package"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "deep-link-from-push",
+      "prompt": "We get a push notification with payload like `{\"type\":\"order\",\"orderId\":\"abc-123\"}`. App should open and navigate straight to OrderDetails inside the Orders tab, even if app was killed. Using Decompose with a bottom-nav root. Walk me through how to plumb the deep-link from platform entry points (Android Activity intent / iOS sceneDelegate) into the root component, switch the right tab, push OrderDetails with the orderId, and handle the back stack so the user lands sanely. Code sketches for the relevant Decompose pieces only.",
+      "expected_output": "Pattern for deep-link delivery via root component method (e.g. handleDeepLink), tab switching, child stack push, back-stack handling shown with Decompose APIs.",
+      "files": [],
+      "assertions": [
+        "Root component exposes a method to handle deep links (e.g. handleDeepLink(payload))",
+        "Android entry point reads Intent extras and forwards to root",
+        "iOS entry point reads URL/payload and forwards to root",
+        "Tab switch implemented via root navigation (selectTab/setTab/replaceCurrent)",
+        "OrderDetails pushed onto Orders child stack with orderId argument",
+        "Back-stack handling explained (replace vs push, predictive back)",
+        "Uses Decompose APIs (StackNavigation, ComponentContext)"
+      ]
+    }
+  ]
+}

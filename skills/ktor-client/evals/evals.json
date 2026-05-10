@@ -1,0 +1,36 @@
+{
+  "skill_name": "ktor-client",
+  "evals": [
+    {
+      "id": 1,
+      "name": "oauth2-refresh-retry",
+      "prompt": "Need a Ktor HTTP client for our backend to call a third-party API. Requirements: OAuth2 with token refresh on 401, retry on 5xx with exponential backoff (max 3), JSON serialization via kotlinx.serialization, request/response logging at INFO. Show the HttpClient config, Auth plugin setup with refreshTokens, and a typed call function. Current Ktor version.",
+      "expected_output": "HttpClient { } config with Auth + bearer + refreshTokens lambda, HttpRequestRetry plugin with exponentialDelay + retryOnServerErrors, ContentNegotiation + json(), Logging plugin with LogLevel.INFO, suspending typed call returning data class.",
+      "files": [],
+      "assertions": [
+        "HttpClient { } config block",
+        "Auth plugin installed with bearer { } and refreshTokens { } lambda",
+        "HttpRequestRetry plugin with retryOnServerErrors and exponentialDelay",
+        "Max retries set to 3",
+        "ContentNegotiation plugin with json() (kotlinx.serialization)",
+        "Logging plugin with LogLevel.INFO (or HEADERS/BODY)",
+        "Suspending typed function returning data class",
+        "Ktor 3.4.x version pinned"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "multi-tenant-custom-header",
+      "prompt": "We're building a B2B platform — every outgoing API call needs an `X-Tenant-Id` header tied to the current request's tenant context. Backend is Spring Boot Kotlin with coroutines. Show the Ktor client setup that pulls tenant id from a CoroutineContext element and injects the header for every request, plus error handling when the tenant context is missing.",
+      "expected_output": "Custom plugin or defaultRequest using coroutineContext element, currentCoroutineContext() to read tenant, header injected per request, missing-tenant case throws explicit exception.",
+      "files": [],
+      "assertions": [
+        "Custom plugin or defaultRequest block injects X-Tenant-Id header",
+        "Tenant id read from CoroutineContext element (currentCoroutineContext)",
+        "Custom AbstractCoroutineContextElement defined for tenant",
+        "Missing-tenant case throws explicit exception with clear message",
+        "Ktor 3.4.x and coroutines APIs used correctly"
+      ]
+    }
+  ]
+}

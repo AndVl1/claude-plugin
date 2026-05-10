@@ -1,0 +1,39 @@
+{
+  "skill_name": "metro-di-mobile",
+  "evals": [
+    {
+      "id": 1,
+      "name": "kmp-app-graph",
+      "prompt": "Wire up Metro DI for our KMP/Compose app. Need a single AppGraph with: Ktor HttpClient (singleton), SQLDelight database (singleton), AuthRepository, UserRepository, two ViewModels (LoginViewModel, FeedViewModel). Platform-specific bits: HttpClient engine (OkHttp on Android, Darwin on iOS), DB driver per platform. Show the graph definition, BindingContainers, providers, and how Android/iOS entry points resolve the graph.",
+      "expected_output": "@DependencyGraph AppGraph with @Provides or @Inject, expect/actual or per-platform @BindingContainer for HttpClient engine + DB driver, @SingleIn scopes where appropriate, ViewModels injected, Android Application + iOS entry point using createGraphFactory<AppGraph>.",
+      "files": [],
+      "assertions": [
+        "@DependencyGraph annotation on AppGraph",
+        "@BindingContainer used for module binding",
+        "@Provides functions for HttpClient, SQLDelight db",
+        "@SingleIn(AppScope) or equivalent scope on singletons",
+        "Platform-specific HttpClient engine (OkHttp Android, Darwin iOS) via expect/actual or per-platform BindingContainer",
+        "Two ViewModels (LoginViewModel, FeedViewModel) injected",
+        "Android entry point uses createGraphFactory<AppGraph>().create(...)",
+        "iOS entry point shown",
+        "Metro 1.0.0 version pinned"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "feature-subgraph",
+      "prompt": "Adding a new Settings feature to our KMP app. Want it as a separate Gradle module with its own Metro subgraph extending the AppGraph — so it can use AppGraph's HttpClient and AuthRepository, but adds its own SettingsRepository + SettingsViewModel. Show the GraphExtension definition, BindingContainer for the feature, and how the parent graph exposes what's needed.",
+      "expected_output": "@GraphExtension SettingsGraph with parent injection, @BindingContainer with SettingsRepository binding, parent AppGraph exposes HttpClient+AuthRepository (via @Provides on graph or @Includes), factory pattern for creating subgraph from parent.",
+      "files": [],
+      "assertions": [
+        "@GraphExtension annotation on SettingsGraph",
+        "Parent graph access (AppGraph as @Includes or via factory parameter)",
+        "@BindingContainer for SettingsRepository binding",
+        "SettingsViewModel exposed in subgraph",
+        "Parent AppGraph @Provides exposes HttpClient + AuthRepository so subgraph can use them",
+        "Factory pattern for creating subgraph from parent",
+        "Metro 1.0.0 surface (no 0.10.x APIs)"
+      ]
+    }
+  ]
+}

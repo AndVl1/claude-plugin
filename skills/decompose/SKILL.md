@@ -285,11 +285,113 @@ navigation.pop()                                   // Go back
 navigation.pop { config -> config is Config.Home } // Pop to specific
 navigation.replaceAll(Config.Home)                 // Clear and replace
 navigation.replaceCurrent(Config.Other)            // Replace top
+navigation.navigate { stack -> stack + Config.X }  // Atomic rebuild (single recomposition)
 
 // Slot operations
 dialogNavigation.activate(DialogConfig.Confirm(id)) // Show
 dialogNavigation.dismiss()                          // Hide
 ```
+
+`navigate { ... }` rebuilds whole stack atomically — use for deep links or any multi-step transition where intermediate states must not flicker through UI.
+
+### Multiple coexisting stacks (bottom navigation)
+
+Bottom nav requires independent back stacks per tab — switching tabs must preserve each tab's history. Single root `ChildStack` cannot express this; use one `StackNavigation` + `childStack(...)` per tab, scoped under distinct `childContext(key = ...)` to keep their `StateKeeper`/`InstanceKeeper`/lifecycle isolated. Pick which tab is visible via `SlotNavigation` (or `PagesNavigation` if want swipe).
+
+```kotlin
+interface RootComponent {
+    val tabSlot: Value<ChildSlot<TabConfig, TabChild>>
+    fun selectTab(tab: TabConfig)
+
+    @Serializable
+    sealed class TabConfig {
+        @Serializable data object Home : TabConfig()
+        @Serializable data object Search : TabConfig()
+        @Serializable data object Profile : TabConfig()
+    }
+
+    sealed class TabChild {
+        data class Home(val component: HomeTabComponent) : TabChild()
+        data class Search(val component: SearchTabComponent) : TabChild()
+        data class Profile(val component: ProfileTabComponent) : TabChild()
+    }
+}
+
+class DefaultRootComponent(
+    componentContext: ComponentContext,
+    private val homeTabFactory: HomeTabComponent.Factory,
+    // ...
+) : RootComponent, ComponentContext by componentContext {
+
+    private val tabNavigation = SlotNavigation<RootComponent.TabConfig>()
+
+    override val tabSlot: Value<ChildSlot<RootComponent.TabConfig, RootComponent.TabChild>> =
+        childSlot(
+            source = tabNavigation,
+            serializer = RootComponent.TabConfig.serializer(),
+            initialConfiguration = { RootComponent.TabConfig.Home },
+            // Keep all tabs alive so their back stacks survive tab switches.
+            // Without this, an inactive tab's components are destroyed and history is lost.
+            handleBackButton = false,
+            childFactory = ::createTab
+        )
+
+    private fun createTab(
+        config: RootComponent.TabConfig,
+        context: ComponentContext
+    ): RootComponent.TabChild = when (config) {
+        RootComponent.TabConfig.Home -> RootComponent.TabChild.Home(
+            homeTabFactory.create(
+                // Distinct key per tab — gives each subtree its own
+                // StateKeeper/InstanceKeeper namespace under the same parent.
+                componentContext = context.childContext(key = "tab-home"),
+            )
+        )
+        // ... search, profile analogous
+    }
+
+    override fun selectTab(tab: RootComponent.TabConfig) {
+        // Re-tap on already-active tab → pop that tab's stack to root.
+        if (tabSlot.value.child?.configuration == tab) {
+            (tabSlot.value.child?.instance as? PoppableTab)?.popToRoot()
+            return
+        }
+        tabNavigation.activate(tab)
+    }
+}
+
+interface PoppableTab { fun popToRoot() }
+
+// Per-tab component owns its own StackNavigation and ChildStack.
+class DefaultHomeTabComponent(
+    componentContext: ComponentContext,
+) : HomeTabComponent, PoppableTab, ComponentContext by componentContext {
+
+    private val navigation = StackNavigation<HomeConfig>()
+
+    override val childStack: Value<ChildStack<HomeConfig, HomeChild>> =
+        childStack(
+            source = navigation,
+            serializer = HomeConfig.serializer(),
+            initialConfiguration = HomeConfig.List,
+            // Important: only the active tab should consume back press;
+            // wire this through your platform back dispatcher.
+            handleBackButton = true,
+            childFactory = ::createChild,
+            key = "home-stack"  // unique within this tab's context
+        )
+
+    override fun popToRoot() {
+        navigation.popWhile { it !is HomeConfig.List }
+    }
+}
+```
+
+Why each piece:
+- **`childContext(key = "tab-home")`** — without unique keys, sibling tabs share `StateKeeper` slot names and one will overwrite the other on save/restore.
+- **`SlotNavigation` over `StackNavigation` for tab selector** — tabs aren't a back stack; they're a flat switch. Using a stack here would push tabs onto each other.
+- **Per-tab `StackNavigation`** — back press inside Home tab pops Home's stack only, not the tab selection.
+- **Re-tap pop-to-root** — standard mobile UX (iOS tab bar, Material bottom nav). Detect by comparing current slot config before activating.
 
 ## Compose Integration
 
@@ -515,6 +617,12 @@ class DefaultHomeComponent(
 
 ## Deep Linking
 
+Two delivery moments to handle: **cold start** (process not running, link arrives via `Intent`/launch options — root component constructed with link) and **warm start** (process alive, link arrives via `onNewIntent` on Android or notification delegate on iOS — must forward to existing root component, not rebuild it).
+
+### Cold-start: pre-built stack
+
+For a flat app, `replaceAll(...)` after construction works. But if landing screen needs a real back stack (tap notification → Details, press back → List), build initial stack via `childStack(initialStack = ...)` overload — avoids one-frame flicker of List → Details and gets correct back behavior on first frame.
+
 ```kotlin
 class DefaultRootComponent(
     componentContext: ComponentContext,
@@ -523,20 +631,27 @@ class DefaultRootComponent(
 
     private val navigation = StackNavigation<Config>()
 
-    init {
-        deepLink?.let { handleDeepLink(it) }
+    override val childStack: Value<ChildStack<Config, Child>> =
+        childStack(
+            source = navigation,
+            serializer = Config.serializer(),
+            initialStack = { resolveInitialStack(deepLink) },
+            handleBackButton = true,
+            childFactory = ::createChild
+        )
+
+    private fun resolveInitialStack(deepLink: DeepLink?): List<Config> = when (deepLink) {
+        null -> listOf(Config.Home)
+        is DeepLink.ItemDetails -> listOf(Config.Home, Config.Details(deepLink.itemId))
+        is DeepLink.Settings -> listOf(Config.Home, Config.Settings)
     }
 
-    private fun handleDeepLink(deepLink: DeepLink) {
-        when (deepLink) {
-            is DeepLink.ItemDetails -> {
-                navigation.replaceAll(
-                    Config.Home,
-                    Config.Details(deepLink.itemId)
-                )
-            }
-            is DeepLink.Settings -> {
-                navigation.replaceAll(Config.Home, Config.Settings)
+    // Warm-start entry: invoked from platform layer (see below).
+    fun onDeepLink(deepLink: DeepLink) {
+        navigation.navigate { stack ->
+            when (deepLink) {
+                is DeepLink.ItemDetails -> stack.dropLastWhile { it !is Config.Home } + Config.Details(deepLink.itemId)
+                is DeepLink.Settings -> stack.dropLastWhile { it !is Config.Home } + Config.Settings
             }
         }
     }
@@ -546,17 +661,114 @@ sealed class DeepLink {
     data class ItemDetails(val itemId: String) : DeepLink()
     data object Settings : DeepLink()
 }
+```
 
-// Parse in platform code
-fun parseDeepLink(uri: String): DeepLink? {
-    return when {
-        uri.contains("/item/") -> {
-            val itemId = uri.substringAfter("/item/")
-            DeepLink.ItemDetails(itemId)
-        }
-        uri.contains("/settings") -> DeepLink.Settings
-        else -> null
+`navigate { stack -> ... }` is the atomic operation: receives current stack, returns new stack — single recomposition, no transient state. Prefer it over chained `pop()`/`push()` for deep-link handling.
+
+### Warm-start: Android `onNewIntent`
+
+Android delivers warm-start links via `onNewIntent` on a `singleTask`/`singleTop` Activity. Hold the root component on the Activity and forward parsed link to it — do NOT recreate component or you lose all in-memory state.
+
+```kotlin
+// AndroidManifest.xml: <activity ... android:launchMode="singleTask">
+class MainActivity : ComponentActivity() {
+    private lateinit var rootComponent: RootComponent
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val deepLink = intent.data?.toString()?.let(::parseDeepLink)
+        rootComponent = createGraph<AndroidAppGraph>().rootComponentFactory.create(
+            componentContext = defaultComponentContext(),
+            deepLink = deepLink
+        )
+        setContent { AppTheme { RootContent(rootComponent) } }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.toString()?.let(::parseDeepLink)?.let(rootComponent::onDeepLink)
+    }
+}
+```
+
+### Warm-start: iOS
+
+`UNUserNotificationCenterDelegate` (or universal-link delegate) fires while app foregrounded. Bridge to Kotlin by exposing the root component (or a thin wrapper) from `MainViewController` and calling `onDeepLink` from Swift.
+
+```kotlin
+// shared
+class IosAppEntry {
+    lateinit var rootComponent: RootComponent
+        private set
+
+    fun build(deepLink: DeepLink?): UIViewController { /* construct rootComponent, return ComposeUIViewController */ }
+    fun handleDeepLink(deepLink: DeepLink) = rootComponent.onDeepLink(deepLink)
+}
+```
+
+```swift
+// iOS app
+func userNotificationCenter(_:didReceive response: UNNotificationResponse, withCompletionHandler ...) {
+    if let link = parseDeepLink(response.notification.request.content.userInfo) {
+        AppEntry.shared.handleDeepLink(deepLink: link)
+    }
+}
+```
+
+### Bottom-nav deep links
+
+With multi-tab structure, deep link to "item in Home tab" must (a) switch active tab to Home, (b) push Details onto Home's stack — flat `replaceAll` on root would clobber tab structure. Route the link through root, which dispatches to the right tab.
+
+```kotlin
+fun DefaultRootComponent.onDeepLink(deepLink: DeepLink) {
+    when (deepLink) {
+        is DeepLink.ItemDetails -> {
+            tabNavigation.activate(TabConfig.Home)
+            // After activation, the Home tab component exists in tabSlot —
+            // forward to it. The tab component owns its own StackNavigation.
+            (tabSlot.value.child?.instance as? RootComponent.TabChild.Home)
+                ?.component
+                ?.openDetails(deepLink.itemId)
+        }
+        is DeepLink.Profile -> tabNavigation.activate(TabConfig.Profile)
+    }
+}
+```
+
+If the target tab isn't yet instantiated (cold start with a non-default initial tab), use `initialConfiguration = { resolvedTab }` on the tab `childSlot` and pre-build the tab's stack via the `initialStack` overload of its `childStack(...)`.
+
+### Process death between tap and construction
+
+Notification tap can launch process; if OS kills it before `onCreate` finishes, link is lost unless preserved. Two-layer safety: (1) Android delivers `Intent` via `savedInstanceState`-aware launch; (2) for in-flight links arriving during reconstruction, stash via `StateKeeper`:
+
+```kotlin
+class DefaultRootComponent(
+    componentContext: ComponentContext,
+    deepLink: DeepLink? = null
+) : RootComponent, ComponentContext by componentContext {
+
+    // Persist any pending link that hasn't been consumed yet.
+    private var pendingLink: DeepLink? by savedState("pendingLink", deepLink)
+
+    init {
+        pendingLink?.let { link ->
+            // consume on first frame; clear so we don't re-apply on next restore
+            handleDeepLink(link)
+            pendingLink = null
+        }
+    }
+}
+```
+
+Use this only for links whose target may not exist at construction time (e.g., requires async auth check). For synchronous routing, `initialStack` resolution is sufficient.
+
+```kotlin
+// Parse in platform code
+fun parseDeepLink(uri: String): DeepLink? = when {
+    uri.contains("/item/") -> DeepLink.ItemDetails(uri.substringAfter("/item/"))
+    uri.contains("/settings") -> DeepLink.Settings
+    else -> null
 }
 ```
 

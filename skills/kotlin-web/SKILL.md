@@ -132,21 +132,33 @@ fun main() {
 }
 ```
 
-### Build Configuration
+`CanvasBasedWindow` (from Compose MP, `ExperimentalComposeUiApi`) mounts Skiko canvas into DOM element by id. ID string MUST match `<canvas id="ComposeTarget">` in `wasmJsMain/resources/index.html` — mismatch = blank page, no error. Conventional id: `ComposeTarget`.
+
+### Build Configuration — `wasmJs` target
 
 ```kotlin
 // composeApp/build.gradle.kts
 kotlin {
-    wasmJs {
+    wasmJs("web") {
         browser {
             commonWebpackConfig {
                 outputFileName = "composeApp.js"
+            }
+            devServer {
+                port = 8080
+                // optional:
+                // open = true
+                // static = mutableListOf("$rootDir/composeApp/src/wasmJsMain/resources")
             }
         }
         binaries.executable()
     }
 }
 ```
+
+Target-name string (`"web"` in `wasmJs("web")`) sets Gradle source-set prefix — produces `webMain` / `webTest` source sets alongside default `wasmJsMain`. Older docs show `wasmJs(IR)` — deprecated; named-target form (`wasmJs("web")` or bare `wasmJs { ... }`) is now standard. Pick one convention per module and stick to it; mixing breaks source-set resolution.
+
+`devServer.port` defaults to a free port — set explicitly to avoid clashes with other dev servers (Vite 5173, CRA 3000, Spring 8080 — careful). `static` list adds extra resource roots beyond `wasmJsMain/resources` (rarely needed; default already serves `index.html`).
 
 ### WASM Limitations
 

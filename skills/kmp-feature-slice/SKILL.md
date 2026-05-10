@@ -18,6 +18,20 @@ Procedural workflow for generating complete KMP feature slices. Enforces strict 
 
 When generating a slice, **always read these companion skills first** for current versions and idioms; never inline a version here.
 
+## Project conventions (project-level glue, NOT framework)
+
+This skill references three helpers that are **project conventions**, not Decompose/Metro/Kotlin APIs. Define them once in your `:core:*` modules (or substitute equivalents) before following the steps. If your project already has equivalents under different names, mentally remap.
+
+| Helper | Lives in | Minimal definition / stand-in |
+|--------|----------|-------------------------------|
+| `componentScope()` | `:core:component` (typical) | Extension on `ComponentContext` returning a `CoroutineScope` tied to component lifecycle. **Stand-in**: Decompose Essenty's `coroutineScope()` from `essenty-coroutines-extensions` — same semantics. |
+| `runCatchingApp { ... }` | `:core:result` (typical) | Project-level `runCatching` variant that maps `Throwable` to `AppResult.Failure` (typed-error mapping inside). **Stand-in**: plain `kotlin.runCatching { ... }` returning `kotlin.Result<T>`. |
+| `AppResult<T>` | `:core:result` (typical) | Project sealed result type — usually `sealed interface AppResult<out T> { data class Success<T>(val value: T); data class Failure(val error: AppError) }`. **Stand-in**: `kotlin.Result<T>`. |
+
+If these don't exist yet in the project, create them once in `:core:component` / `:core:result` (or whatever module convention the host project uses) **before** generating feature slices. Do NOT inline them per-feature.
+
+Below, treat any reference to `componentScope()` / `runCatchingApp` / `AppResult` as a call into these conventions — substitute the stand-ins listed above if the project hasn't adopted them.
+
 ## Phase 1: Input Collection (LOW FREEDOM)
 
 Collect these inputs before generating any code:
@@ -88,6 +102,7 @@ feature/<name>/
 | Condition | Additional Files | Insert at step |
 |-----------|-----------------|---------------|
 | `data-sources: local+remote` | `<Name>LocalDataSource.kt` | Step 4b — same step as RemoteDataSource |
+| `local storage uses DataStore` (e.g. Settings-style features) | `commonMain` declares `expect` factory + interface; platform sourceSets supply actuals — typically `androidMain/.../<Name>Settings.android.kt` and `iosMain/.../<Name>Settings.ios.kt` (and `desktopMain` / `wasmJsMain` if targeted). Do NOT put DataStore construction in `commonMain`. | Step 4b — same step as LocalDataSource |
 | `has: list+detail` | **Container** Component (`<Name>Component.kt`) owning `ChildStack<Config, Child>` + **two child Components**: `<Name>ListComponent.kt` and `<Name>DetailComponent.kt` (each with its own `viewState`/`Event`/`View`/`Screen`). Impl side mirrors with `Default<Name>Component`, `Default<Name>ListComponent`, `Default<Name>DetailComponent`. | Container interface at Step 1; child interfaces also at Step 1; container impl at Step 7 (drives `ChildStack`, exposes child factories); child impls at Step 7 (each owns its own state/use cases). View/State/Event/Screen for each child at Steps 8-11. |
 | `pagination: true` | `<Name>Pager.kt` in `impl/domain/` | Step 5b — between Repository (Step 5) and Component (Step 7) |
 | `navigation: stack` | Navigation config (`Config` sealed class + `ChildStack`) in `<Name>Component.kt` and `Default<Name>Component.kt` | Steps 1 + 7 |
@@ -159,6 +174,7 @@ interface <Name>Component {
 ### Step 4: Data Sources (impl/data/)
 - Remote data source with Ktor client
 - (Optional) Local data source with Room/DataStore
+  - DataStore needs platform-specific construction → declare `expect fun create<Name>DataStore(): DataStore<Preferences>` in `commonMain` and provide `actual` impls in `androidMain` (`<Name>Settings.android.kt`), `iosMain` (`<Name>Settings.ios.kt`), and any other targeted platform. The interface stays in `commonMain`; only the factory is `expect/actual`.
 - Map API DTOs to domain models here
 
 ### Step 5: Use Cases (impl/domain/usecase/)

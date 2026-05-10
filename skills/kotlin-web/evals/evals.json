@@ -1,0 +1,36 @@
+{
+  "skill_name": "kotlin-web",
+  "evals": [
+    {
+      "id": 1,
+      "name": "framework-choice-admin-dashboard",
+      "prompt": "Building an internal admin dashboard for our ops team — tables, forms, charts, file uploads. We already have a Kotlin/Spring backend and a small KMP mobile app sharing models. Want to share as much code as possible with the rest of the stack. Walk me through which Kotlin web option fits — Compose for Web (WASM), Kotlin/JS + React (kotlin-wrappers), or Kotlin/JS + Vue — and why. Then bootstrap the chosen one: build.gradle.kts, root component/App, dev server task. Pin current versions.",
+      "expected_output": "Decision tree applied with reasoning (shared models, team familiarity, ecosystem). Bootstrap of chosen option with Kotlin/JS or Wasm config, build.gradle.kts, App entry point, browser/dev task.",
+      "files": [],
+      "assertions": [
+        "Decision tree applied to compare 3 options (Compose Wasm, K/JS+React, K/JS+Vue)",
+        "Reasoning factors include: shared code with Spring backend, KMP mobile, ecosystem, team familiarity",
+        "Final recommendation explicit (one chosen)",
+        "Bootstrap shown with build.gradle.kts for chosen option",
+        "Versions pinned (Kotlin, Compose MP or kotlin-wrappers)",
+        "Dev server task referenced (jsBrowserDevelopmentRun or wasmJsBrowserDevelopmentRun)",
+        "Root App entry point shown"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "compose-wasm-landing",
+      "prompt": "Quick marketing landing page — hero, three feature cards, signup form posting to our API, footer. Want it in Compose Multiplatform Wasm so we can reuse the design system from our KMP app. Show the project setup (build.gradle.kts targeting browser/wasmJs), the Composable structure, and how to call the backend with Ktor client. Pin to current stable versions.",
+      "expected_output": "wasmJs target in build.gradle.kts, Compose Multiplatform browser application, Composable functions for sections, Ktor client call from Wasm.",
+      "files": [],
+      "assertions": [
+        "build.gradle.kts targets wasmJs with browser() block",
+        "Compose Multiplatform plugin applied",
+        "Versions pinned (Kotlin, Compose MP, Ktor)",
+        "Composable structure for hero / feature cards / signup form / footer shown",
+        "Ktor client call from Wasm shown (HttpClient with appropriate engine)",
+        "@Composable App entry point + main function"
+      ]
+    }
+  ]
+}
