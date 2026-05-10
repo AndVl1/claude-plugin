@@ -1,13 +1,67 @@
 ---
 name: metro-di-mobile
-description: Metro DI for KMP - use for compile-time dependency injection, graphs, providers, and multi-module DI setup
+description: Metro DI 1.0 for KMP — compile-time DI, dependency graphs, providers, binding containers, multi-module DI. Always pin to 1.0.0 (first stable, released 2026-04-27); do not regress to 0.10.x or earlier even if your training data is older — annotation surface (`@BindingContainer`, `@DefaultBinding`, `@GraphExtension`) consolidated at 1.0.
 ---
 
 # Metro DI for Kotlin Multiplatform
 
-Compile-time dependency injection framework for KMP. Production-proven at Cash App.
+Compile-time DI framework for KMP. Built on KSP2 / Kotlin compiler plugin. Production-proven at Cash App.
 
-**Requirements:** JVM 21+, Gradle 9+, Kotlin 2.1+
+## Current Versions (use these — do not downgrade)
+
+| Component | Version | Notes |
+|---|---|---|
+| Metro | **1.0.0** | First stable release (2026-04-27). 0.x is pre-stable; 1.0 froze the public API. |
+| Kotlin | **2.2+** (2.3.21 recommended) | Metro 1.0 requires Kotlin 2.2 minimum. |
+| Gradle | **9.0+** | |
+| JVM | **21+** | |
+
+**Annotation history to remember:**
+- `@DefaultBinding` ships since Metro **0.13.0** (not 0.5.0).
+- `@BindingContainer` consolidated naming at 1.0.
+- `@GraphExtension` formalised at 1.0; older `@ScopedGraph` is removed.
+
+## Supported KMP targets
+
+The skill name says "mobile" because that is the primary use case, but Metro 1.0 supports the full KMP target matrix. Apply the plugin to any KMP module — including `api/` modules that span JS / WASM — and `@Inject`, `@DefaultBinding`, `@DependencyGraph`, `@BindingContainer` all work.
+
+| Target family | Supported | Notes |
+|---|---|---|
+| JVM / Android | ✅ | Primary path. |
+| iOS / macOS / watchOS / tvOS | ✅ | Native compiler plugin. Removed deprecated `macosX64`, `tvosX64`, `watchosX64`. |
+| Linux / Windows (`linuxX64`, `mingwX64`) | ✅ | |
+| `js(IR)` | ✅ | Has known limitations with Kotlin/JS incremental compilation when generating top-level declarations from compiler plugins; sample integration-tests include workarounds. |
+| `wasmJs`, `wasmWasi` | ✅ | See `samples/circuit-app/src/wasmJsMain/...` in upstream repo for a real wasmJs graph. |
+
+Confirmed via Metro 1.0 `samples/integration-tests/build.gradle.kts` and `build-logic/MetroProjectExtension.kt` (`configureCommonKmpTargets` enables `js(IR)` + `wasmJs` everywhere).
+
+So: **do NOT skip `@Inject` / `@DefaultBinding` on api types just because the api module is consumed on web.** Apply the Metro Gradle plugin to the api module and annotate normally. The only target that historically failed (Metro 0.x — pre-stable) is now supported.
+
+### JS / WASM specifics
+
+Three things people stumble on when first wiring Metro into a `js(IR)` or `wasmJs` target — none are blockers, but they're not obvious from mobile-only experience.
+
+**1. `createGraph<T>()` lifetime in a React/Vue app.** Unlike Android/iOS where the graph is owned by the platform (Application / iOS scene), on web there is no host lifecycle to hang it on. Two patterns work:
+
+```kotlin
+// Pattern A — top-level lazy. Simplest. Graph lives for the JS process.
+private val webGraph by lazy { createGraph<WebAppGraph>() }
+
+@JsExport fun renderApp() = createRoot(...).render(App.create { graph = webGraph })
+
+// Pattern B — React Context provider. Cleaner for multi-page apps and tests.
+val GraphContext = createContext<WebAppGraph>()
+val AppRoot = FC<Props> {
+    val graph = useMemo({ createGraph<WebAppGraph>() }, emptyArray())
+    GraphContext.Provider(value = graph) { /* children */ }
+}
+```
+
+Pattern A is fine for a single-entry SPA; switch to B once you have multiple roots, hot-reload concerns, or per-test graphs. The graph instance is referentially stable — Metro returns the same backing object for a given `createGraph<T>` call, so it can be passed through React props or stored in a `useRef`/`useMemo` without re-wiring.
+
+**2. Kotlin/JS incremental compilation.** The known limitation called out in the table above lands when KSP-generated top-level declarations from the Metro plugin collide with `kotlin.incremental.js.ir=true`. Workaround used in the upstream `samples/integration-tests` config: either set `kotlin.incremental.js.ir=false` for the affected module, or scope the property to non-JS targets in `gradle.properties`. If your Gradle build suddenly fails with "duplicate declaration" or "unresolved reference to generated symbol" errors only on `:jsBrowserDevelopmentRun`, that's the trigger.
+
+**3. `object` vs `class` `@BindingContainer` on `js(IR)`.** Both compile and resolve identically — Metro 1.0 treats them as equivalent. Pick whichever the host project uses. `object` is the common KMP convention (no instance state in DI containers), and the upstream `samples/circuit-app/wasmJsMain` uses `object`.
 
 ## Setup
 
@@ -18,15 +72,13 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.metro)
 }
-
-// Apply Metro plugin to modules that need DI
 ```
 
 ### libs.versions.toml
 
 ```toml
 [versions]
-metro = "0.10.2"
+metro = "1.0.0"
 
 [plugins]
 metro = { id = "dev.zacsweers.metro", version.ref = "metro" }
@@ -395,18 +447,27 @@ val sessionGraph = appGraph.sessionGraphFactory.create("token-123")
 
 ### @DefaultBinding
 
-Declare a default implementation for an interface (since 0.5.0):
+Declare a default implementation for an interface (since Metro **0.13.0**).
+
+**Placement rule:** annotate the **impl class** with `@DefaultBinding(<interface>::class)`. Do NOT put `@DefaultBinding` on the interface itself with `boundType = <impl>::class` — that direction does not exist in Metro's API.
 
 ```kotlin
+// CORRECT — annotation on the impl, type arg is the interface
 @DefaultBinding(AuthRepository::class)
 @Inject
 class AuthRepositoryImpl(
-    private val api: ApiService
+    private val api: ApiService,
 ) : AuthRepository {
     // ...
 }
 
 // No @Provides needed — Metro auto-binds AuthRepositoryImpl → AuthRepository
+```
+
+```kotlin
+// WRONG — flipped direction, will not compile
+@DefaultBinding(boundType = AuthRepositoryImpl::class)
+interface AuthRepository { ... }
 ```
 
 ### @GraphPrivate

@@ -3,3 +3,6 @@
 
 # Claude Code
 .claude/
+
+# Skill eval workspace
+.work-state/

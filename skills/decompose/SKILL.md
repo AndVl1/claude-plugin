@@ -123,7 +123,11 @@ class MyComponent(
     private val scope = componentScope()
 }
 
-// Helper extension - place in core/common module
+// Helper extension — place wherever your project keeps shared lifecycle utils.
+// If you have a `core/` or `shared/core/` module, put it there so every feature can
+// reuse it. If not, paste this snippet into your feature's impl module
+// (e.g. `feature/<name>/impl/.../component/ComponentScope.kt`) — it has no Decompose-
+// specific deps beyond `essenty`, so duplication is cheap.
 import com.arkivanov.essenty.lifecycle.doOnDestroy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

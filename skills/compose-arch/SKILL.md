@@ -99,11 +99,13 @@ interface FeatureComponent {
     fun obtainEvent(event: FeatureEvent)
 }
 
-@Inject
+// @AssistedInject — required whenever any constructor parameter is @Assisted.
+// Plain @Inject would fail at compile time with "missing binding for ComponentContext".
+@AssistedInject
 class DefaultFeatureComponent(
     private val getDataUseCase: GetDataUseCase,
     @Assisted componentContext: ComponentContext,
-    @Assisted private val onNavigate: (String) -> Unit
+    @Assisted private val onNavigate: (String) -> Unit,
 ) : FeatureComponent, ComponentContext by componentContext {
 
     private val _viewState = MutableValue<FeatureViewState>(FeatureViewState.Loading)

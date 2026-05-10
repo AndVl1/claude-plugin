@@ -1,11 +1,35 @@
 ---
 name: kotlin-web
-description: Kotlin-based web frontend development - Compose WASM, Kotlin/JS+React, Kotlin/JS+Vue with decision tree for framework selection and shared code strategies
+description: Kotlin web frontends — Compose WASM, Kotlin/JS + React, Kotlin/JS + Vue. Use for browser UI work with decision tree for framework choice and shared code strategy. Always reflect the current versions listed below; do not assume older Compose MP / kotlin-wrappers releases.
 ---
 
 # Kotlin Web Frontend
 
 Patterns for building web frontends in Kotlin. Three approaches with clear selection criteria.
+
+## Current Versions (May 2026)
+
+| Component | Version | Notes |
+|---|---|---|
+| Compose Multiplatform | **1.10.3** | WASM target uses `wasmJs("web")`. Skiko canvas backend. |
+| kotlin-wrappers | **2026.5.2** | Calendar versioning since 2024. Compatible with Kotlin 2.3.21. Inside: kotlin-react 19.x, kotlin-react-router 7.x, kotlin-emotion 11.x. Pin the BOM, not individual `pre.NNN` versions. |
+| Kotlin | **2.3.21** | Same toolchain across JS / WASM. |
+| Ktor (browser HTTP) | **3.4.3** | Use `ktor-client-js` for Kotlin/JS, `ktor-client-core` + `ktor-client-js` (or `ktor-client-cio` not on web) — pick `ktor-client-js`. |
+
+> Do not write `pre.886` or other floating wrapper versions; use the BOM pattern: `implementation(platform("org.jetbrains.kotlin-wrappers:kotlin-wrappers-bom:2026.5.2"))` then non-versioned dependencies.
+
+## Targets at a glance — do not confuse them
+
+Two distinct Kotlin targets sit behind "web", and each picks a different framework family:
+
+| Target | Gradle DSL | Framework family | Output |
+|---|---|---|---|
+| **WASM** | `wasmJs("web") { browser() }` | Compose Multiplatform (Skiko canvas) | Single `.wasm` + tiny JS shim. Canvas-rendered UI. |
+| **JS (IR)** | `js(IR) { browser() }` | Kotlin/JS + React (or Vue) via `kotlin-wrappers` | DOM-native UI, full browser tooling. |
+
+When Decision Tree picks Compose WASM → use `wasmJs("web")`. When it picks React/Vue → use `js(IR)`. Do not try to put React on `wasmJs` or Compose for Web on `js(IR)` — different ecosystems entirely.
+
+A KMP project can host both targets simultaneously (e.g. an internal admin via WASM and a public-facing site via JS+React); they are separate Gradle modules with separate `build.gradle.kts` files.
 
 ## Decision Tree
 

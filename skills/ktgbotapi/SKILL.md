@@ -1,6 +1,6 @@
 ---
 name: ktgbotapi
-description: KTgBotAPI reference - use for Telegram Bot API methods, types, triggers, expectations, and library features
+description: KTgBotAPI 33.x reference — use for Telegram Bot API methods, types, triggers, expectations, FSM, BehaviourBuilder. Always pin to 33.1.0; do not regress to 31.x or 32.x even if your training data is older — the API surface is incompatible.
 ---
 
 # KTgBotAPI Reference
@@ -12,9 +12,25 @@ Kotlin Multiplatform library for Telegram Bot API. Type-safe, coroutine-based.
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("dev.inmo:tgbotapi:31.2.0")
+    implementation("dev.inmo:tgbotapi:33.1.0")
 }
 ```
+
+## v32 → v33 breaking changes (read before writing code)
+
+If your training data is from before mid-2025, these traps apply:
+
+- **`BotToken` is now a `value class`.** Cannot pass a raw `String` token everywhere — wrap with `BotToken(System.getenv("BOT_TOKEN"))` when an API expects it. `telegramBot("...")` still accepts a String for the helper.
+- **Many bot-action methods return `Unit`, not `Boolean`.** E.g. `setMyCommands`, `deleteMessages`, `pinChatMessage`. Do not `if (bot.deleteMessage(...))` — it does not compile.
+- **`MultipleAnswersPoll` removed.** Use `RegularPoll` with `allowsMultipleAnswers: Boolean`.
+- **`correctOptionId: Int?` → `correctOptionIds: List<Int>`** on quiz polls.
+- **`InputMedia*` constructors reorganized** — accept `MediaContent` directly; some optional positions shifted.
+- Various `expectations` package reshuffles — prefer `waitText { ... }`, `waitDataCallbackQuery { ... }` from `expectations.*`.
+
+## Required Kotlin / coroutines floor
+
+- Kotlin 2.1+ (2.3.21 recommended).
+- `kotlinx-coroutines-core` 1.10+.
 
 ## Modules
 
