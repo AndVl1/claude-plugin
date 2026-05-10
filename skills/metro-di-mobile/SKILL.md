@@ -37,6 +37,32 @@ Confirmed via Metro 1.0 `samples/integration-tests/build.gradle.kts` and `build-
 
 So: **do NOT skip `@Inject` / `@DefaultBinding` on api types just because the api module is consumed on web.** Apply the Metro Gradle plugin to the api module and annotate normally. The only target that historically failed (Metro 0.x — pre-stable) is now supported.
 
+### JS / WASM specifics
+
+Three things people stumble on when first wiring Metro into a `js(IR)` or `wasmJs` target — none are blockers, but they're not obvious from mobile-only experience.
+
+**1. `createGraph<T>()` lifetime in a React/Vue app.** Unlike Android/iOS where the graph is owned by the platform (Application / iOS scene), on web there is no host lifecycle to hang it on. Two patterns work:
+
+```kotlin
+// Pattern A — top-level lazy. Simplest. Graph lives for the JS process.
+private val webGraph by lazy { createGraph<WebAppGraph>() }
+
+@JsExport fun renderApp() = createRoot(...).render(App.create { graph = webGraph })
+
+// Pattern B — React Context provider. Cleaner for multi-page apps and tests.
+val GraphContext = createContext<WebAppGraph>()
+val AppRoot = FC<Props> {
+    val graph = useMemo({ createGraph<WebAppGraph>() }, emptyArray())
+    GraphContext.Provider(value = graph) { /* children */ }
+}
+```
+
+Pattern A is fine for a single-entry SPA; switch to B once you have multiple roots, hot-reload concerns, or per-test graphs. The graph instance is referentially stable — Metro returns the same backing object for a given `createGraph<T>` call, so it can be passed through React props or stored in a `useRef`/`useMemo` without re-wiring.
+
+**2. Kotlin/JS incremental compilation.** The known limitation called out in the table above lands when KSP-generated top-level declarations from the Metro plugin collide with `kotlin.incremental.js.ir=true`. Workaround used in the upstream `samples/integration-tests` config: either set `kotlin.incremental.js.ir=false` for the affected module, or scope the property to non-JS targets in `gradle.properties`. If your Gradle build suddenly fails with "duplicate declaration" or "unresolved reference to generated symbol" errors only on `:jsBrowserDevelopmentRun`, that's the trigger.
+
+**3. `object` vs `class` `@BindingContainer` on `js(IR)`.** Both compile and resolve identically — Metro 1.0 treats them as equivalent. Pick whichever the host project uses. `object` is the common KMP convention (no instance state in DI containers), and the upstream `samples/circuit-app/wasmJsMain` uses `object`.
+
 ## Setup
 
 ### build.gradle.kts

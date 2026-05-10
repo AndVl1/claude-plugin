@@ -88,12 +88,33 @@ feature/<name>/
 | Condition | Additional Files | Insert at step |
 |-----------|-----------------|---------------|
 | `data-sources: local+remote` | `<Name>LocalDataSource.kt` | Step 4b — same step as RemoteDataSource |
-| `has: list+detail` | `<Name>DetailComponent.kt` (api), `<Name>Default<Name>DetailComponent.kt` (impl), `<Name>DetailView.kt`, `<Name>DetailScreen.kt`, `<Name>DetailViewState.kt`, `<Name>DetailEvent.kt` | Generate each next to its non-detail sibling: detail interface at Step 1, detail component impl at Step 7, detail view/state/event at Steps 8-10, detail screen at Step 11 |
+| `has: list+detail` | **Container** Component (`<Name>Component.kt`) owning `ChildStack<Config, Child>` + **two child Components**: `<Name>ListComponent.kt` and `<Name>DetailComponent.kt` (each with its own `viewState`/`Event`/`View`/`Screen`). Impl side mirrors with `Default<Name>Component`, `Default<Name>ListComponent`, `Default<Name>DetailComponent`. | Container interface at Step 1; child interfaces also at Step 1; container impl at Step 7 (drives `ChildStack`, exposes child factories); child impls at Step 7 (each owns its own state/use cases). View/State/Event/Screen for each child at Steps 8-11. |
 | `pagination: true` | `<Name>Pager.kt` in `impl/domain/` | Step 5b — between Repository (Step 5) and Component (Step 7) |
 | `navigation: stack` | Navigation config (`Config` sealed class + `ChildStack`) in `<Name>Component.kt` and `Default<Name>Component.kt` | Steps 1 + 7 |
 | `navigation: slot` | Slot config in `<Name>Component.kt` and `Default<Name>Component.kt` | Steps 1 + 7 |
 
-> **Component owning navigation alongside state.** A Component can expose BOTH `val viewState: Value<T>` AND `val childStack: Value<ChildStack<Config, Child>>`. They are independent fields. The list+detail variant typically uses an internal `ChildStack` to swap between list and detail children inside the same Component — see Step 7 below.
+> **Component owning navigation alongside state.** A Component can expose BOTH `val viewState: Value<T>` AND `val childStack: Value<ChildStack<Config, Child>>`. They are independent fields.
+>
+> **List+detail uses the container pattern, not one Component with two states.** The container Component holds *only* the `ChildStack` and child factories — no `viewState` of its own. Each child Component (List, Detail) owns its own `viewState`, events, and use cases. This keeps each child testable in isolation and matches Decompose's `Children { }` rendering. A real example:
+>
+> ```kotlin
+> // Container — navigation only, no viewState
+> interface OrderHistoryComponent {
+>     val childStack: Value<ChildStack<*, Child>>
+>     sealed class Child {
+>         data class List(val component: OrderHistoryListComponent) : Child()
+>         data class Detail(val component: OrderHistoryDetailComponent) : Child()
+>     }
+> }
+>
+> // Each child is a full Component with its own viewState
+> interface OrderHistoryListComponent {
+>     val viewState: Value<OrderHistoryListViewState>
+>     fun obtainEvent(event: OrderHistoryListEvent)
+> }
+> ```
+>
+> Avoid the anti-pattern of a single Component carrying `viewState: Value<ListState>` + `detailViewState: Value<DetailState>` + manual show/hide flags — that scales poorly and breaks the one-Component-one-screen mental model.
 
 ### Gradle Files
 
@@ -174,8 +195,21 @@ interface <Name>Component {
 - For each interface declared in `api/` whose impl lives in `impl/`, prefer `@DefaultBinding(<ApiInterface>::class)` on the impl class over a hand-written `@Provides` — Metro auto-binds and you avoid one boilerplate function per interface.
 - Use `@Provides` in the module only when:
   - the binding requires plumbing several deps together (e.g. wrapping a `HttpClient` into a feature-scoped service), OR
-  - the supertype lives in a module that cannot depend on Metro (see "Cross-target api" callout below).
-- `class` vs `object` `@BindingContainer`: match the host project's convention. Both work in Metro 1.0.
+  - the binding wires an api-side `Factory` to its impl-side counterpart (e.g. mapping `OrderHistoryComponent.Factory` → `DefaultOrderHistoryComponent.Factory`).
+- `object` vs `class` `@BindingContainer`: both work identically in Metro 1.0. Default to `object` (no instance state, matches common KMP convention) unless the host project uses `class`. Canonical example:
+
+```kotlin
+@BindingContainer
+object OrderHistoryModule {
+    // Use cases + repository auto-bind via @Inject / @DefaultBinding — nothing needed here.
+
+    // @Provides only when wiring api Factory ← impl Factory or composing several deps.
+    @Provides
+    fun provideComponentFactory(
+        impl: DefaultOrderHistoryComponent.Factory,
+    ): OrderHistoryComponent.Factory = impl
+}
+```
 
 ### Step 13-14: Gradle Build Files
 - API module: kotlin multiplatform only, no compose. Apply the Metro plugin if you want use cases to carry `@Inject`.
@@ -191,6 +225,54 @@ The only reason to keep an `api/` module Metro-free is when **the consumer doesn
 - The web target instantiates use cases manually (`GetOrderHistoryUseCase(JsOrderHistoryRepository())`) at the call site.
 
 Default to "Metro everywhere" unless you have a concrete reason to opt out.
+
+#### Consumer-side graph: two-graph wiring
+
+Once the api module carries `@Inject` annotations, each consumer (mobile vs web) defines its own `@DependencyGraph` and reuses the same api use cases. The two graphs differ only in which impl modules they pull in.
+
+**Mobile graph** — pulls the impl module (with Decompose, real DataSources, full Compose UI):
+
+```kotlin
+// composeApp/.../di/AndroidAppGraph.kt
+@DependencyGraph(
+    bindingContainers = [
+        NetworkModule::class,
+        AndroidPlatformModule::class,
+        OrderHistoryModule::class,           // impl-side @BindingContainer
+    ]
+)
+interface AndroidAppGraph {
+    val orderHistoryComponentFactory: OrderHistoryComponent.Factory
+}
+```
+
+**Web graph** — only the api module + a web-specific repo impl. No Decompose, no impl module:
+
+```kotlin
+// webApp/.../di/WebAppGraph.kt
+@DependencyGraph(
+    bindingContainers = [WebPlatformModule::class],
+)
+interface WebAppGraph {
+    val getOrderHistoryPageUseCase: GetOrderHistoryPageUseCase
+    val getOrderDetailUseCase: GetOrderDetailUseCase
+    val orderHistoryRepository: OrderHistoryRepository
+}
+
+// webApp/.../orderhistory/JsOrderHistoryRepository.kt
+@Inject
+@DefaultBinding(OrderHistoryRepository::class)
+class JsOrderHistoryRepository(
+    private val httpClient: HttpClient,
+) : OrderHistoryRepository {
+    override suspend fun getPage(cursor: String?): AppResult<OrderPage> = /* ... */
+    override suspend fun getDetail(id: String): AppResult<OrderDetail> = /* ... */
+}
+```
+
+The use cases (`GetOrderHistoryPageUseCase`, `GetOrderDetailUseCase`) live in api with `@Inject` and resolve from constructor scanning — no `@Provides` needed in the web module. The `@DefaultBinding` on `JsOrderHistoryRepository` plugs the api interface. The web graph deliberately excludes `OrderHistoryModule` (impl side) since it pulls Decompose lifecycle types React doesn't need.
+
+For createGraph lifetime on JS (top-level `lazy` vs React Context provider), see `metro-di-mobile`'s "JS / WASM specifics" section.
 
 ### Step 15: Settings Update
 - Add both modules to `settings.gradle.kts`
