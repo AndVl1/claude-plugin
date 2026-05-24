@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Plugin marketplace by AndVl1 with multi-agent development tools for Claude Code",
-    "version": "1.6.2"
+    "version": "1.7.0"
   },
   "plugins": [
     {
@@ -18,6 +18,21 @@
       },
       "category": "development",
       "tags": ["agents", "multi-agent", "team", "kotlin", "spring", "react", "kmp"]
+    },
+    {
+      "name": "vision-analyze",
+      "source": {
+        "source": "github",
+        "repo": "AndVl1/vision-analyze",
+        "path": "claude-plugin"
+      },
+      "description": "Skill for vision-analyze CLI — visual screenshot analysis via local multimodal LLM (Qwen2-VL, SmolVLM) on llama.cpp",
+      "version": "0.1.0",
+      "author": {
+        "name": "AndVl1"
+      },
+      "category": "tooling",
+      "tags": ["vision", "screenshot", "llama-cpp", "vlm", "qa", "rust"]
     }
   ]
 }
