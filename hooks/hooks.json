@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .work-state/team-state.md with phase results before proceeding.'; fi; fi",
+            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then if [ \"$(uname)\" = \"Darwin\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\"); else LAST_MOD=$(stat -c %Y \"$STATE_FILE\"); fi; NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .work-state/team-state.md with phase results before proceeding.'; fi; fi",
             "timeout": 5
           }
         ]
@@ -49,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .work-state/team-state.md found. Create state file before launching agents!'; elif [ -f \"$STATE_FILE\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\" 2>/dev/null || stat -c %Y \"$STATE_FILE\" 2>/dev/null); NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
+            "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ ! -f \"$STATE_FILE\" ]; then echo '⚠️ STATE SYNC WARNING: No .work-state/team-state.md found. Create state file before launching agents!'; else if [ \"$(uname)\" = \"Darwin\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\"); else LAST_MOD=$(stat -c %Y \"$STATE_FILE\"); fi; NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 600 ]; then echo \"⚠️ STATE SYNC WARNING: team-state.md not updated for $((AGE / 60)) minutes. Update state before launching more agents!\"; fi; fi",
             "timeout": 5
           }
         ]
