@@ -1,0 +1,38 @@
+name: Test Hooks (cross-platform)
+
+on:
+  push:
+    paths:
+      - 'hooks/hooks.json'
+      - 'tests/test-hooks.sh'
+      - '.github/workflows/test-hooks.yml'
+  pull_request:
+    paths:
+      - 'hooks/hooks.json'
+      - 'tests/test-hooks.sh'
+      - '.github/workflows/test-hooks.yml'
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show OS and stat info
+        run: |
+          uname -a
+          stat --version 2>/dev/null || stat -f %m / 2>&1 | head -1
+
+      - name: Ensure jq present
+        run: |
+          if ! command -v jq >/dev/null; then
+            if [ "$(uname)" = "Darwin" ]; then brew install jq; else sudo apt-get update && sudo apt-get install -y jq; fi
+          fi
+          jq --version
+
+      - name: Run hook tests
+        run: bash tests/test-hooks.sh
