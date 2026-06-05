@@ -440,6 +440,19 @@ else
 fi
 
 echo ""
+echo "=== team.config (custom agents + roster_overrides) ==="
+CFG="$REPO_ROOT/workflows/team.config.example.json"
+if [ -f "$CFG" ]; then
+  rolesok=$(jq -r 'if (.roles|type)=="object" then "y" else "n" end' "$CFG")
+  [ "$rolesok" = "y" ] && log_pass "config roles is an object" || log_fail "config roles is an object" "type mismatch"
+  # roster_overrides (if present) only contains add/remove/replace arrays
+  badkeys=$(jq -r '(.roster_overrides // {}) | to_entries[] | .value | keys[] | select(. != "add" and . != "remove" and . != "replace")' "$CFG")
+  [ -z "$badkeys" ] && log_pass "config roster_overrides keys limited to add/remove/replace" || log_fail "config roster_overrides keys" "unexpected: $badkeys"
+else
+  log_fail "team.config.example.json present" "$CFG missing"
+fi
+
+echo ""
 echo "=== Stop dod-gate.sh (P8 — Definition of Done backstop) ==="
 REPO_ROOT="$(cd "$(dirname "$HOOKS_FILE")/.." && pwd)"
 cmd=$(get_cmd_idx Stop 1)

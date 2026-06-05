@@ -35,6 +35,12 @@ Make `/team` execution deterministic by turning the workflow from prose into dat
 - Hook + profile test coverage in `tests/test-hooks.sh` (now 74 assertions); CI watches
   `workflows/**`, `hooks/validate-state.sh`, and `hooks/dod-gate.sh`.
 
+- **Custom agents in workflows** — roles resolve to any registered agent (project
+  `.claude/agents/`, user `~/.claude/agents/`, or another plugin via `<plugin>:<agent>`), passed
+  verbatim as Task `subagent_type`. New `roster_overrides` in `team.config.json` adds/removes/
+  replaces a stage's agents without forking `workflows/*.json` (applied after `conditional[]`).
+  Resolution order documented: `role → config.roles[role] → built-in default`.
+
 ### Changed
 - `commands/team.md` — added the authoritative **WORKFLOW INTERPRETER** section (classify &
   gate → resolve config → walk stages). The 7-phase prose is retained as **STAGE REFERENCE**

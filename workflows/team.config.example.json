@@ -1,6 +1,8 @@
 {
   "_comment": "Copy this to your PROJECT's .claude/team.config.json and adjust. These values ARE the built-in defaults — the interpreter behaves identically when the file is absent. Per-project config exists so role→agent/model/scope resolution is deterministic and explicit instead of inferred at runtime (P6).",
 
+  "_custom_agents": "roles values are passed verbatim to Task subagent_type. Use a bare name for a project (.claude/agents/) or user (~/.claude/agents/) agent, or 'plugin:agent' for another plugin's agent. Examples below: 'backend' could be a project agent 'my-go-backend', 'security-tester' could be 'acme-sec:pentester'.",
+
   "roles": {
     "analyst": "analyst",
     "tech-researcher": "tech-researcher",
@@ -14,6 +16,12 @@
     "code-reviewer": "code-reviewer",
     "security-tester": "security-tester",
     "devops": "devops"
+  },
+
+  "_roster_overrides_example": "Add/replace agents on a stage without editing workflows/*.json. Applied after the profile's conditional[] rules. Uncomment and adapt:",
+  "roster_overrides": {
+    "review": { "add": [] },
+    "architecture": { "add": [] }
   },
 
   "models": {

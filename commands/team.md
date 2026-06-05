@@ -146,8 +146,26 @@ table, set `"workflow_override": true` in the state (the gate respects it).
 Read `.claude/team.config.json` if present (schema: `workflows/team.config.schema.json`,
 defaults: `workflows/team.config.example.json`). It maps **role → agent**, **role → model**,
 and **file globs → scope**. When absent, use the built-in defaults (identical to the example).
-Resolve every stage's `role`/`roles` to concrete agents and models through this config —
-never guess the agent at runtime.
+
+**Role resolution order** (deterministic, never guess at runtime):
+`role` → `config.roles[role]` → built-in default agent of the same name. The resolved string
+is passed verbatim as the Task `subagent_type`, so it can be **any registered agent**, not just
+this plugin's:
+- a **project** agent in `.claude/agents/<name>` → bare `<name>`
+- a **user** agent in `~/.claude/agents/<name>` → bare `<name>`
+- **another plugin's** agent → `<plugin>:<name>` (e.g. `acme-sec:pentester`)
+- this plugin's agent → `fullstack-team:<name>` or bare default
+
+New role keys beyond the built-in set are allowed — reference them from a custom profile or
+via `roster_overrides`. (A hook cannot verify an agent exists; a wrong name fails at the Task
+call, not at a gate.)
+
+**Roster overrides**: after applying a stage's `conditional[]` rules, apply
+`config.roster_overrides[<stage id>]` if present — `replace` sets the whole roster, else
+`add`/`remove` adjust it. This lets a project add its own reviewer/architect to a consilium
+stage without forking `workflows/*.json`.
+
+Resolve every stage's `role`/`roles` to concrete agents and models through this config.
 
 ### Step C — Walk the stages
 
@@ -161,7 +179,8 @@ Load `workflows/<name>.json`. For each stage in order:
    - `orchestrator` — you do it inline (no subagent).
    - `single` — one Task; resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
    - `consilium` — launch `roles[]` in parallel (one message, multiple Task calls). Apply
-     `conditional[]` against scope flags to add/remove reviewers (replaces "EM picks agents").
+     `conditional[]` against scope flags, then `config.roster_overrides[<stage>]`, to add/remove
+     reviewers (replaces "EM picks agents").
    - `bash` — run the deterministic command.
    - `none` — skip.
    Use the matching phase section below as the prompt template / criteria for that stage.

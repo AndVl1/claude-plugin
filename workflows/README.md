@@ -125,6 +125,37 @@ interpreter infers scope from file globs using built-in defaults:
 | `scope.has_infra` | touches Docker/K8s/CI/CD/Helm |
 | `${scope.dev_agent}` | `developer-backend` \| `frontend-developer` \| `developer-mobile` per dominant scope |
 
+## Custom agents (project / user / other plugins)
+
+A role resolves to a concrete agent via `.claude/team.config.json` `roles` (then the built-in
+default). The resolved value is passed verbatim as the Task `subagent_type`, so it can be **any
+registered agent**:
+
+- project agent `.claude/agents/<name>` → bare `<name>`
+- user agent `~/.claude/agents/<name>` → bare `<name>`
+- another plugin's agent → `<plugin>:<name>`
+- this plugin's agent → `fullstack-team:<name>` or the bare default
+
+```jsonc
+// .claude/team.config.json
+{
+  "roles": {
+    "backend": "my-go-backend",          // project agent
+    "security-tester": "acme-sec:pentester"  // another plugin's agent
+  },
+  "models": { "my-go-backend": "opus" },
+  "roster_overrides": {                  // add agents to a stage without forking a profile
+    "review": { "add": ["my-a11y-agent"] }
+  }
+}
+```
+
+`roster_overrides[<stage id>]` is applied by the interpreter **after** the profile's
+`conditional[]` rules: `replace` sets the whole roster, otherwise `add`/`remove` adjust it.
+New role keys beyond the built-in set are allowed — reference them from a custom profile or a
+roster override. Note: a hook cannot verify an agent exists, so a wrong name fails at the Task
+call (not at a gate).
+
 ## Adding a custom profile
 
 1. Copy an existing profile, give it a unique `name` (= filename).
