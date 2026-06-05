@@ -1,0 +1,86 @@
+{
+  "name": "standard",
+  "title": "Standard Feature Development",
+  "description": "MEDIUM features. Single architect (no parallel options), still clarifies and reviews.",
+  "match": { "type": ["FEATURE", "REFACTOR", "OPS"], "complexity": ["MEDIUM", "COMPLEX"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "type": "orchestrator",
+      "gate": "branch_created",
+      "checkpoint": "confirm_understanding",
+      "autonomous": "log confirmed understanding, continue",
+      "produces": "discovery"
+    },
+    {
+      "id": "exploration",
+      "title": "Codebase Exploration",
+      "type": "consilium",
+      "roles": ["analyst", "tech-researcher"],
+      "parallel": true,
+      "consumes": ["discovery"],
+      "produces": "exploration"
+    },
+    {
+      "id": "clarify",
+      "title": "Clarifying Questions",
+      "type": "orchestrator",
+      "consumes": ["discovery", "exploration"],
+      "checkpoint": "user_answers",
+      "autonomous": "abort needs-human if confidence LOW; else resolve with documented defaults",
+      "produces": "clarifications"
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture Design (single)",
+      "type": "single",
+      "role": "architect",
+      "consumes": ["exploration", "clarifications"],
+      "checkpoint": "user_choice",
+      "autonomous": "proceed with proposed design",
+      "produces": "architecture"
+    },
+    {
+      "id": "implementation",
+      "title": "Implementation",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["architecture", "exploration"],
+      "checkpoint": "approve_implementation",
+      "autonomous": "proceed",
+      "produces": "implementation"
+    },
+    {
+      "id": "review",
+      "title": "Quality Review",
+      "type": "consilium",
+      "roles": ["qa", "code-reviewer"],
+      "parallel": true,
+      "conditional": [
+        { "if": "scope.has_security", "add": "security-tester" },
+        { "if": "scope.has_ui", "add": "manual-qa" }
+      ],
+      "consumes": ["implementation", "architecture"],
+      "gate": "confidence>=80",
+      "checkpoint": "fix_decision",
+      "autonomous": "fix CRITICAL+HIGH, then continue",
+      "produces": "review"
+    },
+    {
+      "id": "review_fixes",
+      "title": "Review Fixes",
+      "type": "single",
+      "role": "${issue.zone.dev_agent}",
+      "consumes": ["review"],
+      "skip_if": "review.findings == []"
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "review"],
+      "produces": "summary"
+    }
+  ]
+}

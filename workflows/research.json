@@ -1,0 +1,30 @@
+{
+  "name": "research",
+  "title": "Research / Investigation",
+  "description": "INVESTIGATION. Deep parallel exploration, no implementation. Returns findings.",
+  "match": { "type": ["INVESTIGATION"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "type": "orchestrator",
+      "produces": "discovery"
+    },
+    {
+      "id": "exploration",
+      "title": "Deep Exploration",
+      "type": "consilium",
+      "roles": ["analyst", "tech-researcher", "diagnostics"],
+      "parallel": true,
+      "consumes": ["discovery"],
+      "produces": "exploration"
+    },
+    {
+      "id": "summary",
+      "title": "Findings",
+      "type": "orchestrator",
+      "consumes": ["exploration"],
+      "produces": "summary"
+    }
+  ]
+}

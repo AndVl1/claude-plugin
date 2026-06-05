@@ -1,0 +1,54 @@
+{
+  "name": "debug-cycle",
+  "title": "Debug Cycle (diagnostics ↔ manual-qa loop)",
+  "description": "BUG_FIX requiring verification, or any BUG_FIX in autonomous mode. Iterative loop: diagnose → fix → manual-qa verify; on FAIL loop back to diagnose with new evidence (max 3).",
+  "match": { "type": ["BUG_FIX"], "complexity": ["MEDIUM", "COMPLEX", "CRITICAL"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "type": "orchestrator",
+      "gate": "branch_created",
+      "produces": "discovery"
+    },
+    {
+      "id": "diagnose",
+      "title": "Diagnostics",
+      "type": "single",
+      "role": "diagnostics",
+      "consumes": ["discovery", "debug"],
+      "produces": "diagnosis"
+    },
+    {
+      "id": "implementation",
+      "title": "Apply Fix",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["diagnosis"],
+      "checkpoint": "approve_fix",
+      "autonomous": "proceed",
+      "produces": "implementation"
+    },
+    {
+      "id": "verify",
+      "title": "Manual QA Verify",
+      "type": "single",
+      "role": "manual-qa",
+      "consumes": ["diagnosis", "implementation"],
+      "produces": "debug",
+      "loop": {
+        "back_to": "diagnose",
+        "until": "verdict == PASS",
+        "max_iterations": 3,
+        "on_exhausted": "escalate_user"
+      }
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "diagnosis", "debug"],
+      "produces": "summary"
+    }
+  ]
+}

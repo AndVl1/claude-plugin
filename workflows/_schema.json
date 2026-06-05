@@ -1,0 +1,113 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "fullstack-team/workflows/_schema.json",
+  "title": "Workflow Profile",
+  "description": "Declarative workflow profile consumed by the /team interpreter. One input (classification) selects exactly one profile; the interpreter walks `stages` in order, reading/writing typed artifacts under .work-state/artifacts/. See workflows/README.md.",
+  "type": "object",
+  "required": ["name", "title", "match", "stages"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Profile id, matches the filename (without .json).",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "title": { "type": "string", "description": "Human-readable name." },
+    "description": { "type": "string" },
+    "match": {
+      "type": "object",
+      "description": "Classification selector. A profile is chosen when classification.type is in `type` AND (complexity is in `complexity` OR complexity is omitted). The first profile (in selection order) whose match passes wins. See workflows/README.md for the resolution table.",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "array",
+          "items": { "enum": ["FEATURE", "BUG_FIX", "INVESTIGATION", "REVIEW", "HOTFIX", "REFACTOR", "OPS"] }
+        },
+        "complexity": {
+          "type": "array",
+          "items": { "enum": ["QUICK", "MEDIUM", "COMPLEX", "CRITICAL"] }
+        }
+      },
+      "required": ["type"]
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/stage" }
+    }
+  },
+  "definitions": {
+    "stage": {
+      "type": "object",
+      "required": ["id", "title", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_]+$", "description": "Unique stage id within the profile. Used as stage_cursor in team-state.json." },
+        "title": { "type": "string" },
+        "type": {
+          "enum": ["orchestrator", "single", "consilium", "bash", "none"],
+          "description": "orchestrator = main context performs it (no subagent). single = exactly one subagent (role resolved via team.config or scope). consilium = N subagents in parallel (see `roles`). bash = deterministic shell step, no model. none = placeholder/skip."
+        },
+        "roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "For consilium: list of roles to launch in parallel. Role names resolve to agents via .claude/team.config.json `roles` (falling back to built-in defaults). A role may repeat (e.g. architect x3 for design options)."
+        },
+        "role": {
+          "type": "string",
+          "description": "For single: the role to launch. May be a template like \"${scope.dev_agent}\" resolved from the scope of touched files."
+        },
+        "parallel": { "type": "boolean", "default": false, "description": "For consilium: launch all roles in one message (true) or sequentially (false)." },
+        "consumes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Artifact ids this stage reads from .work-state/artifacts/<id>.json before running. The interpreter loads them and threads relevant content into subagent prompts — replaces ad-hoc 'paste section'."
+        },
+        "produces": {
+          "type": "string",
+          "description": "Artifact id this stage writes to .work-state/artifacts/<id>.json when complete. Schema per type in workflows/artifacts-schema.json."
+        },
+        "checkpoint": {
+          "type": "string",
+          "description": "Named user checkpoint. Interactive mode: stop and wait. Autonomous mode: skip + log the auto-decision (see `autonomous`)."
+        },
+        "autonomous": {
+          "type": "string",
+          "description": "Auto-decision applied at this stage's checkpoint when running in autonomous mode (e.g. 'pick option #1', 'abort needs-human if confidence LOW')."
+        },
+        "gate": {
+          "type": "string",
+          "description": "Precondition that must hold before the interpreter may mark this stage done (e.g. 'branch_created', 'confidence>=80', 'tests_passed')."
+        },
+        "conditional": {
+          "type": "array",
+          "description": "Data-driven roster adjustments evaluated against scope flags — replaces 'EM decides which agents to launch'.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "if": { "type": "string", "description": "Flag expression, e.g. 'scope.has_security', 'scope.has_ui'." },
+              "add": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+              "remove": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] }
+            }
+          }
+        },
+        "skip_if": {
+          "type": "string",
+          "description": "Skip this stage when the expression is true (e.g. 'review.findings == []', 'autonomous')."
+        },
+        "loop": {
+          "type": "object",
+          "description": "Optional bounded loop (e.g. debug cycle). The interpreter repeats `back_to` until `until` or `max_iterations`.",
+          "additionalProperties": false,
+          "properties": {
+            "back_to": { "type": "string", "description": "Stage id to loop back to on failure." },
+            "until": { "type": "string", "description": "Exit condition, e.g. 'verdict == PASS'." },
+            "max_iterations": { "type": "integer", "minimum": 1 },
+            "on_exhausted": { "type": "string", "description": "Action when max reached, e.g. 'escalate_user', 'needs-human'." }
+          }
+        }
+      }
+    }
+  }
+}

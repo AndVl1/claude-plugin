@@ -1,0 +1,31 @@
+{
+  "name": "emergency",
+  "title": "Emergency Hotfix",
+  "description": "HOTFIX / CRITICAL production impact. Minimal fix, focused sanity check, no refactoring. May run on main.",
+  "match": { "type": ["HOTFIX"] },
+  "stages": [
+    {
+      "id": "implementation",
+      "title": "Minimal Fix",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "produces": "implementation"
+    },
+    {
+      "id": "review",
+      "title": "Sanity Check",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["implementation"],
+      "gate": "confidence>=80",
+      "produces": "review"
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "review"],
+      "produces": "summary"
+    }
+  ]
+}

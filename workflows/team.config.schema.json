@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "fullstack-team/workflows/team.config.schema.json",
+  "title": "Per-project team configuration",
+  "description": "Project-level config read by the /team interpreter from `.claude/team.config.json`. Makes role→agent, model, and scope resolution deterministic and per-project instead of inferred at runtime. All fields optional — absent values fall back to built-in defaults (see workflows/team.config.example.json for the defaults).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "roles": {
+      "type": "object",
+      "description": "Maps a workflow role (used in profile stages) to a concrete agent name. Unmapped roles fall back to the built-in default of the same name.",
+      "additionalProperties": { "type": "string" }
+    },
+    "models": {
+      "type": "object",
+      "description": "Maps a role to a model override (opus|sonnet|haiku). The wildcard key '*' sets the default. Priority: explicit role > '*' > agent's own frontmatter.",
+      "additionalProperties": { "enum": ["opus", "sonnet", "haiku"] }
+    },
+    "scope_map": {
+      "type": "array",
+      "description": "Ordered glob→scope rules. First matching glob (against a touched/planned file) sets the scope and its dev agent. Generated/extended by the /team-scope command (P3).",
+      "items": {
+        "type": "object",
+        "required": ["glob", "scope"],
+        "additionalProperties": false,
+        "properties": {
+          "glob": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+          "scope": { "enum": ["backend", "frontend", "mobile", "devops"] },
+          "dev_agent": { "type": "string" }
+        }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "description": "Glob expressions defining scope flags used by `conditional` rules in profiles.",
+      "additionalProperties": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] }
+    },
+    "design_system": {
+      "type": ["string", "null"],
+      "description": "Design system name; the `ui` review role reads ~/.claude/design-systems/<name>.md."
+    }
+  }
+}

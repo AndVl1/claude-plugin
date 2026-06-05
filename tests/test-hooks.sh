@@ -346,6 +346,99 @@ cmd=$(get_cmd_idx SubagentStop 0)
 out=$(bash -c "$cmd"); ec=$?
 assert "SubagentStop prints reminder" 0 "Subagent finished" "$ec" "$out"
 
+echo ""
+echo "=== PreToolUse Task (validate-state.sh — P4/P5) ==="
+# Second "Task" matcher block invokes hooks/validate-state.sh via CLAUDE_PLUGIN_ROOT.
+REPO_ROOT="$(cd "$(dirname "$HOOKS_FILE")/.." && pwd)"
+cmd=$(get_cmd_n "PreToolUse" "Task" 1)
+
+# 0. no json state → allow silently (markdown-only / not started)
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+if [ "$ec" = "0" ] && [ -z "$out" ]; then
+  log_pass "validate-state no json state → allow"
+else
+  log_fail "validate-state no json state → allow" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 1. consistent classification + monotonic stages → allow
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"full-feature"},"stages":[{"id":"a","status":"done"},{"id":"b","status":"in_progress"},{"id":"c","status":"pending"}]}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state consistent → allow" 0 "" "$ec" "$out"
+rm -rf "$sb"
+
+# 2. workflow mismatch (FEATURE/COMPLEX should be full-feature, not standard) → block
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"standard"}}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state workflow mismatch → block" 2 "BLOCK (P5)" "$ec" "$out"
+rm -rf "$sb"
+
+# 3. missing classification.type → block
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"workflow":"full-feature"}}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state no type → block" 2 "no classification.type" "$ec" "$out"
+rm -rf "$sb"
+
+# 4. non-monotonic stages (pending before done) → block
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"full-feature"},"stages":[{"id":"a","status":"pending"},{"id":"b","status":"done"}]}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state non-monotonic → block" 2 "BLOCK (P4)" "$ec" "$out"
+rm -rf "$sb"
+
+# 5. autonomous BUG_FIX (any complexity) → debug-cycle expected → allow
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"BUG_FIX","complexity":"MEDIUM","workflow":"debug-cycle"},"autonomous":true}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state autonomous bug→debug-cycle → allow" 0 "" "$ec" "$out"
+rm -rf "$sb"
+
+# 6. explicit workflow_override bypasses P5 mismatch → allow
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"standard"},"workflow_override":true}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state override → allow" 0 "" "$ec" "$out"
+rm -rf "$sb"
+
+# 7. malformed JSON → degrade to allow (never brick)
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{ this is not json' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state malformed json → allow" 0 "not valid JSON" "$ec" "$out"
+rm -rf "$sb"
+
+echo ""
+echo "=== workflow profiles (JSON validity + schema invariants) ==="
+WF_DIR="$REPO_ROOT/workflows"
+if [ -d "$WF_DIR" ]; then
+  for f in "$WF_DIR"/*.json; do
+    base=$(basename "$f")
+    if jq empty "$f" 2>/dev/null; then
+      log_pass "workflows/$base valid JSON"
+    else
+      log_fail "workflows/$base valid JSON" "jq parse failed"
+    fi
+  done
+  # every profile (excluding schema/config files) has name+match+stages, and name == filename
+  for f in "$WF_DIR"/*.json; do
+    base=$(basename "$f" .json)
+    case "$base" in _schema|artifacts-schema|team.config.schema|team.config.example) continue ;; esac
+    ok=$(jq -r '(if (.name and .match and .stages) then "y" else "n" end)' "$f" 2>/dev/null)
+    nm=$(jq -r '.name // ""' "$f" 2>/dev/null)
+    if [ "$ok" = "y" ] && [ "$nm" = "$base" ]; then
+      log_pass "profile $base has name/match/stages and name matches filename"
+    else
+      log_fail "profile $base structure" "ok=$ok name='$nm' file='$base'"
+    fi
+  done
+else
+  log_fail "workflows dir present" "$WF_DIR missing"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"

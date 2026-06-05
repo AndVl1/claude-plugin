@@ -1,0 +1,88 @@
+{
+  "name": "full-feature",
+  "title": "Full 7-Phase Feature Development",
+  "description": "COMPLEX features. Parallel exploration, mandatory clarifying questions, parallel architecture options, scoped implementation, parallel review.",
+  "match": { "type": ["FEATURE", "REFACTOR"], "complexity": ["COMPLEX"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "type": "orchestrator",
+      "gate": "branch_created",
+      "checkpoint": "confirm_understanding",
+      "autonomous": "log confirmed understanding, continue",
+      "produces": "discovery"
+    },
+    {
+      "id": "exploration",
+      "title": "Codebase Exploration",
+      "type": "consilium",
+      "roles": ["analyst", "tech-researcher", "analyst"],
+      "parallel": true,
+      "consumes": ["discovery"],
+      "produces": "exploration"
+    },
+    {
+      "id": "clarify",
+      "title": "Clarifying Questions",
+      "type": "orchestrator",
+      "consumes": ["discovery", "exploration"],
+      "checkpoint": "user_answers",
+      "autonomous": "abort needs-human if confidence LOW; else resolve with documented defaults",
+      "produces": "clarifications"
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture Design",
+      "type": "consilium",
+      "roles": ["architect", "architect", "architect"],
+      "parallel": true,
+      "consumes": ["exploration", "clarifications"],
+      "checkpoint": "user_choice",
+      "autonomous": "pick option #1, record rationale",
+      "produces": "architecture"
+    },
+    {
+      "id": "implementation",
+      "title": "Implementation",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["architecture", "exploration"],
+      "checkpoint": "approve_implementation",
+      "autonomous": "proceed",
+      "produces": "implementation"
+    },
+    {
+      "id": "review",
+      "title": "Quality Review",
+      "type": "consilium",
+      "roles": ["qa", "code-reviewer"],
+      "parallel": true,
+      "conditional": [
+        { "if": "scope.has_security", "add": "security-tester" },
+        { "if": "scope.has_ui", "add": "manual-qa" },
+        { "if": "scope.has_infra", "add": "devops" }
+      ],
+      "consumes": ["implementation", "architecture"],
+      "gate": "confidence>=80",
+      "checkpoint": "fix_decision",
+      "autonomous": "fix CRITICAL+HIGH, then continue",
+      "produces": "review"
+    },
+    {
+      "id": "review_fixes",
+      "title": "Review Fixes",
+      "type": "single",
+      "role": "${issue.zone.dev_agent}",
+      "consumes": ["review"],
+      "skip_if": "review.findings == []"
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "review"],
+      "produces": "summary"
+    }
+  ]
+}

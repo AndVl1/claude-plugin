@@ -96,10 +96,27 @@ claude-plugin/
 ├── agents/               # 12 agent definitions
 ├── commands/             # User-invokable commands
 ├── skills/               # Domain knowledge (20+ skills)
+├── workflows/            # Declarative workflow profiles (JSON) + schemas
+│   ├── _schema.json          # Profile schema (stage taxonomy)
+│   ├── artifacts-schema.json # Typed handoff contracts
+│   ├── team.config.example.json # Per-project role→agent/model/scope (copy to .claude/)
+│   └── <name>.json           # One profile per workflow
 ├── hooks/
-│   └── hooks.json        # Safety hooks
+│   ├── hooks.json        # Safety + state hooks
+│   └── validate-state.sh # Deterministic classification + transition gate
+├── tests/                # Cross-platform hook test suite
 └── README.md
 ```
+
+### Deterministic workflows
+
+`/team` no longer interprets its workflow from prose — it resolves a **declarative profile**
+(`workflows/*.json`) from the task classification and walks the stages mechanically, so the
+same input takes the same path every run. Each stage hands off **typed artifacts** under
+`.work-state/artifacts/`, and a hook (`hooks/validate-state.sh`) gates agent launches when the
+state's classification, workflow, or stage progress is inconsistent. Per-project role→agent,
+model, and scope mapping lives in `.claude/team.config.json` (see
+`workflows/team.config.example.json`). Full design: `workflows/README.md`.
 
 ## Usage
 
@@ -120,7 +137,10 @@ claude-plugin/
 
 ## State Management
 
-The plugin uses `.work-state/team-state.md` to track progress across agent sessions. Create this file in your project:
+The plugin tracks progress in `.work-state/`: `team-state.json` is the machine source of
+truth (classification, stage cursor, monotonic stage status) consumed by the interpreter and
+the validation hook; `team-state.md` is the human-readable mirror. Handoff artifacts live in
+`.work-state/artifacts/`. The markdown file (created as below) keeps the legacy hooks working:
 
 ```bash
 mkdir -p .work-state

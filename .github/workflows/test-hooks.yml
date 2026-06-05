@@ -4,11 +4,15 @@ on:
   push:
     paths:
       - 'hooks/hooks.json'
+      - 'hooks/validate-state.sh'
+      - 'workflows/**'
       - 'tests/test-hooks.sh'
       - '.github/workflows/test-hooks.yml'
   pull_request:
     paths:
       - 'hooks/hooks.json'
+      - 'hooks/validate-state.sh'
+      - 'workflows/**'
       - 'tests/test-hooks.sh'
       - '.github/workflows/test-hooks.yml'
 

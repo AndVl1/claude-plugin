@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "fullstack-team/workflows/artifacts-schema.json",
+  "title": "Handoff Artifacts",
+  "description": "Typed handoff contracts between workflow stages. Each stage with a `produces` field writes .work-state/artifacts/<id>.json matching the schema below. Downstream stages declare these ids in `consumes` and read them from disk instead of receiving pasted prose. Artifacts survive context compaction and make the inter-stage contract explicit.",
+  "definitions": {
+    "discovery": {
+      "type": "object",
+      "required": ["task", "branch"],
+      "properties": {
+        "task": { "type": "string", "description": "Confirmed feature/bug description." },
+        "branch": { "type": "string", "description": "Feature branch created in Phase 1." },
+        "constraints": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "exploration": {
+      "type": "object",
+      "required": ["files_to_read", "summary"],
+      "properties": {
+        "files_to_read": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": { "path": { "type": "string" }, "why": { "type": "string" } },
+            "required": ["path"]
+          }
+        },
+        "patterns": { "type": "array", "items": { "type": "string" }, "description": "Architecture patterns / conventions found." },
+        "similar_features": { "type": "array", "items": { "type": "string" } },
+        "integration_points": { "type": "array", "items": { "type": "string" } },
+        "summary": { "type": "string" }
+      }
+    },
+    "clarifications": {
+      "type": "object",
+      "properties": {
+        "questions": { "type": "array", "items": { "type": "string" } },
+        "answers": { "type": "array", "items": { "type": "string" }, "description": "User answers (interactive) or auto-resolved defaults with rationale (autonomous)." }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["options", "chosen"],
+      "properties": {
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "summary"],
+            "properties": {
+              "id": { "type": "string", "description": "e.g. minimal / clean / pragmatic." },
+              "summary": { "type": "string" },
+              "pros": { "type": "array", "items": { "type": "string" } },
+              "cons": { "type": "array", "items": { "type": "string" } },
+              "files": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "chosen": { "type": "string", "description": "Option id chosen by user (interactive) or option #1 (autonomous)." },
+        "rationale": { "type": "string" },
+        "files_to_modify": { "type": "array", "items": { "type": "string" } },
+        "api_contract": { "type": "object", "description": "DTOs/endpoints shared by backend+frontend in full-stack tasks." }
+      }
+    },
+    "diagnosis": {
+      "type": "object",
+      "required": ["root_cause"],
+      "properties": {
+        "root_cause": { "type": "string" },
+        "evidence": { "type": "array", "items": { "type": "string" }, "description": "Stacktraces, logs, repro steps." },
+        "proposed_fix": { "type": "string", "description": "Diff or description." },
+        "verification_checklist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "implementation": {
+      "type": "object",
+      "required": ["files_touched"],
+      "properties": {
+        "files_touched": { "type": "array", "items": { "type": "string" } },
+        "commits": { "type": "array", "items": { "type": "string" } },
+        "build_status": { "enum": ["pass", "fail", "n/a"] },
+        "scope": { "type": "array", "items": { "enum": ["backend", "frontend", "mobile", "devops"] } }
+      }
+    },
+    "debug": {
+      "type": "object",
+      "required": ["verdict", "iterations"],
+      "properties": {
+        "verdict": { "enum": ["PASS", "FAIL", "ESCALATED"] },
+        "iterations": { "type": "integer" },
+        "manual_qa_log": { "type": "string" },
+        "screenshots": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "review": {
+      "type": "object",
+      "required": ["findings"],
+      "properties": {
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "severity", "confidence", "zone"],
+            "properties": {
+              "title": { "type": "string" },
+              "file": { "type": "string" },
+              "line": { "type": "integer" },
+              "severity": { "enum": ["CRITICAL", "HIGH", "MEDIUM"] },
+              "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
+              "zone": { "enum": ["backend", "frontend", "mobile", "devops"], "description": "Routes Phase 6.5 fix to the right developer role." }
+            }
+          },
+          "description": "Only findings with confidence >= 80 are recorded."
+        },
+        "tests": { "type": "object", "properties": { "passed": { "type": "integer" }, "failed": { "type": "integer" } } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "built": { "type": "array", "items": { "type": "string" } },
+        "decisions": { "type": "array", "items": { "type": "string" } },
+        "files_modified": { "type": "array", "items": { "type": "string" } },
+        "pr_url": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

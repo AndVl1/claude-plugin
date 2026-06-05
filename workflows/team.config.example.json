@@ -1,0 +1,40 @@
+{
+  "_comment": "Copy this to your PROJECT's .claude/team.config.json and adjust. These values ARE the built-in defaults — the interpreter behaves identically when the file is absent. Per-project config exists so role→agent/model/scope resolution is deterministic and explicit instead of inferred at runtime (P6).",
+
+  "roles": {
+    "analyst": "analyst",
+    "tech-researcher": "tech-researcher",
+    "diagnostics": "diagnostics",
+    "architect": "architect",
+    "backend": "developer-backend",
+    "frontend": "frontend-developer",
+    "mobile": "developer-mobile",
+    "qa": "qa",
+    "manual-qa": "manual-qa",
+    "code-reviewer": "code-reviewer",
+    "security-tester": "security-tester",
+    "devops": "devops"
+  },
+
+  "models": {
+    "architect": "opus",
+    "code-reviewer": "opus",
+    "security-tester": "opus",
+    "tech-researcher": "haiku",
+    "*": "sonnet"
+  },
+
+  "scope_map": [
+    { "glob": ["**/iosApp/**", "**/composeApp/**", "**/commonMain/**", "**/androidMain/**"], "scope": "mobile", "dev_agent": "developer-mobile" },
+    { "glob": ["**/*.tsx", "**/*.jsx", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
+    { "glob": ["**/Dockerfile", "**/*.yaml", "**/*.yml", "**/helm/**", "**/.github/**", "**/k8s/**"], "scope": "devops", "dev_agent": "devops" },
+    { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend", "dev_agent": "developer-backend" }
+  ],
+
+  "flags": {
+    "has_security": ["**/auth/**", "**/security/**", "**/*crypto*", "**/*Secret*", "**/*Token*"],
+    "has_infra": ["**/Dockerfile", "**/helm/**", "**/k8s/**", "**/.github/workflows/**"]
+  },
+
+  "design_system": null
+}

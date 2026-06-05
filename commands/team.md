@@ -109,6 +109,75 @@ Based on classification, select workflow:
 
 ---
 
+## WORKFLOW INTERPRETER (authoritative)
+
+**This is how you execute a workflow. The phase prose further below is a REFERENCE for
+*how* to run each stage type — this section governs *which* stages run and *in what order*.**
+
+The workflow is **data**, not prose. Profiles live in `workflows/*.json` (see
+`workflows/README.md` and `workflows/_schema.json`). You are an interpreter that walks a
+profile's stages mechanically. Same classification → same stage sequence. Do not improvise
+the order or the agent roster — both come from the profile.
+
+### Step A — Classify and gate (P5)
+
+1. Run Phase 0 classification → produce the `CLASSIFICATION` block (type, complexity,
+   confidence, workflow).
+2. Resolve the profile via the table in `workflows/README.md` (mirrored below). **Write
+   `.work-state/team-state.json` BEFORE launching any agent.** A PreToolUse(Task) hook
+   (`hooks/validate-state.sh`) blocks agent launches when the state has no classification,
+   or when `workflow` does not match `type×complexity`. This makes the *entry* into the
+   workflow deterministic — not just the steps after it.
+
+| Type | QUICK | MEDIUM | COMPLEX | CRITICAL |
+|------|-------|--------|---------|----------|
+| FEATURE / REFACTOR | lightweight | standard | full-feature | full-feature |
+| OPS | lightweight | standard | standard | standard |
+| BUG_FIX | bug-fix | debug-cycle | debug-cycle | debug-cycle |
+| INVESTIGATION | research (all) | | | |
+| REVIEW | review (all) | | | |
+| HOTFIX | emergency (all) | | | |
+
+Autonomous override: every BUG_FIX uses `debug-cycle`. If you intentionally diverge from the
+table, set `"workflow_override": true` in the state (the gate respects it).
+
+### Step B — Resolve config (P6)
+
+Read `.claude/team.config.json` if present (schema: `workflows/team.config.schema.json`,
+defaults: `workflows/team.config.example.json`). It maps **role → agent**, **role → model**,
+and **file globs → scope**. When absent, use the built-in defaults (identical to the example).
+Resolve every stage's `role`/`roles` to concrete agents and models through this config —
+never guess the agent at runtime.
+
+### Step C — Walk the stages
+
+Load `workflows/<name>.json`. For each stage in order:
+
+1. **skip_if** true → mark `skipped`, continue.
+2. **consumes** → read each artifact from `.work-state/artifacts/<id>.json` and thread its
+   content into the prompt. Do NOT paste prose blobs between phases — artifacts are the
+   handoff contract (P2; schemas in `workflows/artifacts-schema.json`).
+3. **run by `type`**:
+   - `orchestrator` — you do it inline (no subagent).
+   - `single` — one Task; resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
+   - `consilium` — launch `roles[]` in parallel (one message, multiple Task calls). Apply
+     `conditional[]` against scope flags to add/remove reviewers (replaces "EM picks agents").
+   - `bash` — run the deterministic command.
+   - `none` — skip.
+   Use the matching phase section below as the prompt template / criteria for that stage.
+4. **checkpoint** — interactive: stop and wait for the user. Autonomous: apply the stage's
+   `autonomous` decision and log it (do not wait).
+5. **gate** — do not mark the stage `done` until the gate holds (e.g. `branch_created`,
+   `confidence>=80`).
+6. **produces** → write the typed artifact to `.work-state/artifacts/<id>.json`.
+7. **loop** — if present, repeat `back_to` until `until` or `max_iterations` (then `on_exhausted`).
+8. Update `team-state.json` (`stage_cursor` + `stages[].status`) and mirror into
+   `team-state.md`. Progress must stay monotonic (the P4 gate blocks phase-skipping).
+
+If no profile matches the classification, fall back to `standard`.
+
+---
+
 ## YOUR TEAM (14 Specialized Agents)
 
 | Agent | Role | Model | When Used |
@@ -183,9 +252,17 @@ Based on classification, select workflow:
 
 ---
 
+## STAGE REFERENCE (phase details)
+
+> The sections below describe *how* to perform each stage type — prompt templates, agent
+> rosters, checkpoints, and outputs. The **WORKFLOW INTERPRETER** section above decides
+> *which* of these stages run and *in what order* (from `workflows/*.json`). When a profile
+> stage maps to a phase here, use that phase's prompts/criteria. These phase numbers are the
+> canonical full-feature sequence; other profiles reuse a subset.
+
 ## FULL 7-PHASE WORKFLOW
 
-Use for COMPLEX features. This is the primary workflow.
+Use for COMPLEX features (profile `full-feature`). This is the primary workflow.
 
 ---
 
@@ -920,9 +997,42 @@ Phase 6: Parallel Review (code-reviewer || security-tester)
 
 > **Backward compatibility**: In earlier versions, state files were stored in `.claude/`. If you find `team-state.md` in `.claude/` from a previous session, continue working with it there — but for **new sessions always create state in `.work-state/`**. Hooks automatically check both locations, preferring `.work-state/`.
 
-### Create State File
+### Machine state (source of truth — P4)
 
-Before Phase 2, create `.work-state/team-state.md` (ensure directory exists: `mkdir -p .work-state`):
+The interpreter's source of truth is `.work-state/team-state.json`. **Create it during
+Step A (after classification, before launching any agent)** — the P5 gate
+(`hooks/validate-state.sh`) requires it. Shape:
+
+```json
+{
+  "schema": 1,
+  "classification": { "type": "FEATURE", "complexity": "COMPLEX", "confidence": "HIGH", "workflow": "full-feature" },
+  "task": "<confirmed description>",
+  "autonomous": false,
+  "workflow_override": false,
+  "issue": null,
+  "stage_cursor": "exploration",
+  "stages": [
+    { "id": "discovery", "status": "done" },
+    { "id": "exploration", "status": "in_progress" },
+    { "id": "clarify", "status": "pending" }
+  ],
+  "artifacts": { "discovery": ".work-state/artifacts/discovery.json" },
+  "updated_at": "<iso8601>"
+}
+```
+
+- `stages[].status` ∈ `pending | in_progress | done | skipped`. Progress must be monotonic —
+  the P4 gate blocks launching agents if a later stage is done/in_progress while an earlier
+  one is still `pending` (mark deliberately skipped stages `skipped`, not `pending`).
+- Handoff **artifacts** live in `.work-state/artifacts/<id>.json`, typed per
+  `workflows/artifacts-schema.json`. Each stage reads its `consumes` and writes its `produces`.
+- `team-state.md` (below) is the **human-readable mirror** — keep it updated too for the
+  legacy hooks (PreCompact/Stop) and quick reading, but the `.json` drives interpretation.
+
+### Create State File (human mirror)
+
+Alongside the JSON, maintain `.work-state/team-state.md` (ensure directory exists: `mkdir -p .work-state`):
 
 ```markdown
 # TEAM STATE
@@ -969,7 +1079,11 @@ Mark phases complete, add key outputs.
 
 ## HARD RULES
 
-1. **CLASSIFY FIRST** - Determine type + complexity before acting
+0. **PROFILE-DRIVEN** - Execute via the WORKFLOW INTERPRETER: resolve a `workflows/*.json`
+   profile from the classification and walk its stages. Do not improvise stage order or the
+   agent roster — they come from the profile + `.claude/team.config.json`.
+1. **CLASSIFY FIRST** - Determine type + complexity before acting; write `team-state.json`
+   (with classification + workflow) BEFORE launching any agent (P5 gate enforces this)
 2. **PARALLEL EXPLORATION** - Always launch 2-3 agents in Phase 2
 3. **NEVER SKIP QUESTIONS** - Phase 3 is mandatory for complex features
 4. **USER CHOOSES ARCHITECTURE** - Present options, don't decide alone
@@ -1039,18 +1153,21 @@ If validation fails, you will see: `⚠️ STATE SYNC WARNING: Update .work-stat
 
 **Task**: $ARGUMENTS
 
-**Step 1**: Classify (type, complexity, workflow, confidence)
+Follow the **WORKFLOW INTERPRETER** section:
 
-**Step 2**: If FULL workflow:
-- Create state file
-- Execute all 7 phases with checkpoints
-- Wait for user at each checkpoint
+**Step A — Classify & gate**: produce the `CLASSIFICATION` block, resolve the profile from
+the table, write `.work-state/team-state.json` (classification + workflow + stages) **before
+any agent**.
 
-**Step 3**: If simpler workflow:
-- Follow appropriate workflow above
-- Still maintain checkpoints where indicated
+**Step B — Resolve config**: read `.claude/team.config.json` (or built-in defaults) for
+role→agent, role→model, and scope.
 
-**Step 4**: Summarize and offer to commit
+**Step C — Walk stages**: load `workflows/<name>.json` and run each stage by `type`, reading
+`consumes` / writing `produces` artifacts, honoring checkpoints (interactive) or `autonomous`
+decisions, and gates. Use the STAGE REFERENCE phases below for the prompts/criteria of each
+stage. Keep `team-state.json` + `team-state.md` updated after every stage.
+
+**Finally**: summarize (Phase 7) and offer to commit / open a PR.
 
 ---
 
