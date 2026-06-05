@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+- Removed the `/solo` command — unused; its role is covered by `/team` (QUICK tasks
+  auto-classify to the `lightweight` profile) and `/interview` for clarification.
+- Actualized README for 2.0.0 (14 agents, corrected agent table, custom-agent support, DoD /
+  classification gates, `jq` requirement).
+
 ## 2.0.0 — Deterministic workflows + Definition of Done
 
 Make `/team` execution deterministic by turning the workflow from prose into data.
