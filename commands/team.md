@@ -184,14 +184,22 @@ Load `workflows/<name>.json`. For each stage in order:
 3. **Read the stage file**: `workflows/stages/<stage id>.md` — use its prompt template /
    criteria to run the stage. (Loaded on demand; do not run a stage from memory.)
 4. **run by `type`**:
-   - `orchestrator` — you do it inline (no subagent).
-   - `single` — one Task; resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
+   - `orchestrator` — you do it inline (no subagent). Only discovery/clarify/summary are this type.
+   - `single` — **delegate to ONE Task. The Task call is your FIRST action of the stage.**
+     Resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
    - `consilium` — **launch ALL `roles[]` in ONE message with multiple Task calls (true
-     parallel fan-out). Never launch them sequentially or collapse to a single agent.** First
-     announce the roster ("launching N agents: …"), then apply `conditional[]` against scope
-     flags and `config.roster_overrides[<stage>]`, then fire them together.
+     parallel fan-out), as your FIRST action. Never sequential, never collapsed to one agent.**
+     First announce the roster ("launching N agents: …"), then apply `conditional[]` against
+     scope flags and `config.roster_overrides[<stage>]`, then fire them together.
    - `bash` — run the deterministic command.
    - `none` — skip.
+
+   🚫 **For `single`/`consilium` stages, do NOT investigate inline.** Reading code, `git log`,
+   `grep`, building "to give the agent context" is the **agent's job, not yours** — that is the
+   entire point of delegating. Doing recon yourself first is how the orchestrator quietly
+   absorbs the whole task and the subagent never runs. The orchestrator's only reads before
+   delegating are: the stage file (`workflows/stages/<id>.md`), the `consumes` artifacts, and
+   `team.config`. Hand the task to the agent; it gathers its own context.
 5. **checkpoint** — interactive: stop and wait for the user. Autonomous: apply the stage's
    `autonomous` decision and log it (do not wait).
 6. **gate** — do not mark the stage `done` until the gate holds (e.g. `branch_created`,
@@ -477,14 +485,17 @@ Mark phases complete, add key outputs.
 2. **PARALLEL CONSILIUM** - `consilium` stages launch ALL roles in ONE message (multiple Task
    calls). Never sequential, never collapsed to one agent. Announce the roster first. Read the
    stage file (`workflows/stages/<id>.md`) before running any stage.
-3. **NEVER SKIP QUESTIONS** - Phase 3 is mandatory for complex features
-4. **USER CHOOSES ARCHITECTURE** - Present options, don't decide alone
-5. **EXPLICIT APPROVAL** - Wait for user before implementation
-6. **CONFIDENCE SCORING** - Only report issues >= 80% confidence
-7. **STATE FILE** - Create and update after every phase
-8. **READ IDENTIFIED FILES** - After agents return, read the files they found
-9. **DELEGATE REVIEW FIXES** - Never fix review issues yourself; launch developer/frontend-developer/devops agents for their respective zones
-10. **DEFINITION OF DONE** - Write `dod.json` early (criteria + verify method); never claim
+3. **DELEGATE, DON'T DIY** - For `single`/`consilium` stages the Task call is your FIRST action.
+   Never `git`/`grep`/`Read` code "to give the agent context" — that recon is the agent's job.
+   Doing it yourself is how the orchestrator absorbs the task and the subagent never runs.
+4. **NEVER SKIP QUESTIONS** - Phase 3 is mandatory for complex features
+5. **USER CHOOSES ARCHITECTURE** - Present options, don't decide alone
+6. **EXPLICIT APPROVAL** - Wait for user before implementation
+7. **CONFIDENCE SCORING** - Only report issues >= 80% confidence
+8. **STATE FILE** - Create and update after every phase
+9. **READ IDENTIFIED FILES** - After agents return, read the files they found
+10. **DELEGATE REVIEW FIXES** - Never fix review issues yourself; launch developer/frontend-developer/devops agents for their respective zones
+11. **DEFINITION OF DONE** - Write `dod.json` early (criteria + verify method); never claim
     done until every item is `met` WITH evidence. Set `pause.kind` before yielding the turn so
     an intentional pause isn't mistaken for a done-claim. For BUG_FIX, document the root cause
     before the first code edit.
