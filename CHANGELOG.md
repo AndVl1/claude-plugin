@@ -1,8 +1,21 @@
 # Changelog
 
-## 1.11.0 — Deterministic workflows
+## 2.0.0 — Deterministic workflows + Definition of Done
 
 Make `/team` execution deterministic by turning the workflow from prose into data.
+
+### Breaking
+
+The `/team` execution model changed and new hooks can **block** flows that previously just
+finished — hence the major bump. Specifically:
+- A PreToolUse(Task) gate (`hooks/validate-state.sh`) blocks agent launches when
+  `team-state.json` lacks a classification or its `workflow` mismatches `type×complexity`.
+- A Stop gate (`hooks/dod-gate.sh`) blocks a done-claim when the Definition of Done is unmet.
+
+Both degrade gracefully (no `jq`, or legacy markdown-only state → no enforcement), and have
+escape hatches (`workflow_override`, `pause.kind`, `.work-state/.dod-override`). The plugin's
+agents/skills surface is unchanged; the 7-phase prose is retained as STAGE REFERENCE and the
+`/team-next` return contract is unchanged.
 
 ### Added
 - **Declarative workflow profiles** (`workflows/*.json`, P1) — 8 profiles (full-feature,
