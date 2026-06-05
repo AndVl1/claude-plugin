@@ -9,7 +9,7 @@
       "title": "Quick Discovery",
       "type": "orchestrator",
       "gate": "branch_created",
-      "produces": "discovery"
+      "produces": ["discovery", "dod"]
     },
     {
       "id": "implementation",
@@ -34,7 +34,8 @@
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "review"],
+      "consumes": ["implementation", "review", "dod"],
+      "gate": "dod_complete",
       "produces": "summary"
     }
   ]

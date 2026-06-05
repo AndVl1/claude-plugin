@@ -64,8 +64,8 @@
           "description": "Artifact ids this stage reads from .work-state/artifacts/<id>.json before running. The interpreter loads them and threads relevant content into subagent prompts — replaces ad-hoc 'paste section'."
         },
         "produces": {
-          "type": "string",
-          "description": "Artifact id this stage writes to .work-state/artifacts/<id>.json when complete. Schema per type in workflows/artifacts-schema.json."
+          "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }],
+          "description": "Artifact id(s) this stage writes to .work-state/artifacts/<id>.json when complete. Schema per type in workflows/artifacts-schema.json. May be an array when a stage emits more than one (e.g. exploration also produces the dod)."
         },
         "checkpoint": {
           "type": "string",

@@ -17,7 +17,8 @@
       "type": "single",
       "role": "diagnostics",
       "consumes": ["discovery", "debug"],
-      "produces": "diagnosis"
+      "gate": "root_cause_documented",
+      "produces": ["diagnosis", "dod"]
     },
     {
       "id": "implementation",
@@ -25,6 +26,7 @@
       "type": "single",
       "role": "${scope.dev_agent}",
       "consumes": ["diagnosis"],
+      "gate": "root_cause_documented",
       "checkpoint": "approve_fix",
       "autonomous": "proceed",
       "produces": "implementation"
@@ -47,7 +49,8 @@
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "diagnosis", "debug"],
+      "consumes": ["implementation", "diagnosis", "debug", "dod"],
+      "gate": "dod_complete",
       "produces": "summary"
     }
   ]

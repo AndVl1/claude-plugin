@@ -178,6 +178,73 @@ If no profile matches the classification, fall back to `standard`.
 
 ---
 
+## DEFINITION OF DONE (acceptance gate)
+
+A task may not claim **done** until its Definition of Done is closed **with proof**. This
+exists to kill three recurring failures: "done" claimed without verification, fixing the
+symptom instead of the root cause, and not using skills/runbooks proactively.
+
+### Write the DoD early (before code)
+
+The DoD is produced by the exploration/discovery/diagnose stage (it appears in those stages'
+`produces`) and written to `.work-state/artifacts/dod.json` (schema: `dod` in
+`workflows/artifacts-schema.json`). When exploration is a consilium, the orchestrator MUST
+tell `analyst` + `tech-researcher` to author it. Each item is a **concrete, observable
+criterion + how it is verified**:
+
+```json
+{
+  "items": [
+    { "criterion": "login returns 200 and sets session cookie",
+      "verify_method": "curl -i /login | head; cookie present",
+      "status": "pending", "evidence": "" }
+  ],
+  "type_requirements_met": false
+}
+```
+
+Per-type minimum items (set `type_requirements_met: true` only when present):
+
+| Type | Required DoD items |
+|------|--------------------|
+| **BUG_FIX** | root cause **named** (not symptom) + why the fix closes it; repro-before reproduces; repro-after does not; affected scenario checked in manual-qa |
+| **FEATURE** | each acceptance criterion → a concrete manual-qa step; both modes covered if the feature touches agent/sessions |
+| **QA / report** | published via `publish-gist-report` skill; screenshots actually visible (not broken) |
+| **any UI** | the DoD records *what must be visible* on the screenshot; on close, *what is actually visible* is written |
+
+### Closing an item = proof, not a checkbox
+
+Set an item `status: "met"` only with non-empty `evidence`:
+- **screenshot** counts only if it was READ and you wrote what is visible (input/output present? errors?);
+- **report** only via `publish-gist-report` with the gist URL;
+- **bug fix** only with a named root cause;
+- **test/curl** with the output attached.
+
+### Root-cause gate (BUG_FIX)
+
+Before the first code edit, write the root-cause hypothesis to `diagnosis.json` `root_cause`
+(and `team-state.md` Key Decisions): what the root cause is and why this fix closes it rather
+than masking it. The `root_cause_documented` gate and a PreToolUse(Edit) reminder enforce this.
+
+### Enforcement & pausing
+
+- The `dod_complete` gate on the summary stage is the primary check; `hooks/dod-gate.sh`
+  (Stop) is the deterministic backstop — it reads `dod.json`, never prose.
+- It blocks (exit 2) **only at a done-claim** (`pause.kind == done` or `stage_cursor == summary`)
+  with unmet/evidence-less items. It never nags mid-work.
+- It allows the stop for every legitimate pause — set `pause.kind` accordingly
+  (`background_wait`, `user_checkpoint`, `needs_human`, `failed`). `research`/`review`/`emergency`
+  workflows and stale state (branch mismatch) are exempt.
+- **Escape hatch**: `touch .work-state/.dod-override` to bypass deliberately.
+
+### Skill triggers (reminder — not hard-enforced)
+
+Call the skill BEFORE the action, not from memory: `publish-gist-report` for any QA/report
+gist, `kotlin-web` for Vue/web frontend, `manual-qa` agent for E2E. A hook cannot reliably
+detect these, so treat this as a standing rule.
+
+---
+
 ## YOUR TEAM (14 Specialized Agents)
 
 | Agent | Role | Model | When Used |
@@ -1006,6 +1073,7 @@ Step A (after classification, before launching any agent)** — the P5 gate
 ```json
 {
   "schema": 1,
+  "branch": "feat/<name>",
   "classification": { "type": "FEATURE", "complexity": "COMPLEX", "confidence": "HIGH", "workflow": "full-feature" },
   "task": "<confirmed description>",
   "autonomous": false,
@@ -1018,6 +1086,7 @@ Step A (after classification, before launching any agent)** — the P5 gate
     { "id": "clarify", "status": "pending" }
   ],
   "artifacts": { "discovery": ".work-state/artifacts/discovery.json" },
+  "pause": { "kind": "none", "reason": "" },
   "updated_at": "<iso8601>"
 }
 ```
@@ -1027,6 +1096,15 @@ Step A (after classification, before launching any agent)** — the P5 gate
   one is still `pending` (mark deliberately skipped stages `skipped`, not `pending`).
 - Handoff **artifacts** live in `.work-state/artifacts/<id>.json`, typed per
   `workflows/artifacts-schema.json`. Each stage reads its `consumes` and writes its `produces`.
+- `branch`: stamp the feature branch (`git rev-parse --abbrev-ref HEAD`). Used to detect a
+  stale state left over from another task (1 task = 1 branch) — the DoD gate skips enforcement
+  when `branch` ≠ current branch.
+- `pause`: set **before yielding the turn** so the DoD Stop-backstop knows this is an
+  intentional pause, not a done-claim. `kind` ∈
+  `none | background_wait | user_checkpoint | needs_human | failed | done`.
+  Set `background_wait` when waiting on a background agent/workflow, `user_checkpoint` when
+  waiting on the user, `needs_human`/`failed` for terminal non-done states, `done` only when
+  the task is genuinely finished (this arms the DoD gate).
 - `team-state.md` (below) is the **human-readable mirror** — keep it updated too for the
   legacy hooks (PreCompact/Stop) and quick reading, but the `.json` drives interpretation.
 
@@ -1092,6 +1170,10 @@ Mark phases complete, add key outputs.
 7. **STATE FILE** - Create and update after every phase
 8. **READ IDENTIFIED FILES** - After agents return, read the files they found
 9. **DELEGATE REVIEW FIXES** - Never fix review issues yourself; launch developer/frontend-developer/devops agents for their respective zones
+10. **DEFINITION OF DONE** - Write `dod.json` early (criteria + verify method); never claim
+    done until every item is `met` WITH evidence. Set `pause.kind` before yielding the turn so
+    an intentional pause isn't mistaken for a done-claim. For BUG_FIX, document the root cause
+    before the first code edit.
 
 ---
 

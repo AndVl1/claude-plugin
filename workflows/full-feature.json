@@ -20,7 +20,7 @@
       "roles": ["analyst", "tech-researcher", "analyst"],
       "parallel": true,
       "consumes": ["discovery"],
-      "produces": "exploration"
+      "produces": ["exploration", "dod"]
     },
     {
       "id": "clarify",
@@ -81,7 +81,8 @@
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "review"],
+      "consumes": ["implementation", "review", "dod"],
+      "gate": "dod_complete",
       "produces": "summary"
     }
   ]

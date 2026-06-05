@@ -92,6 +92,26 @@ The prose phase descriptions in `commands/team.md` remain as a **STAGE REFERENCE
 the detailed prompt templates and review criteria live there. Profiles drive *which* stages
 run and *in what order*; the reference supplies the *how* for each stage type.
 
+## Definition of Done (acceptance gate)
+
+Profiles with an implementation phase produce a `dod` artifact early (exploration / discovery /
+diagnose) and put `gate: dod_complete` on the `summary` stage. The DoD fixes acceptance criteria
+*before* code, each with a verification method and (on close) proof. See the **DEFINITION OF
+DONE** section in `commands/team.md` for the policy and per-type minimums.
+
+Enforcement is two-layered and **never wedges the session**:
+- **Primary**: the `dod_complete` gate (interpreter) and `root_cause_documented` gate (BUG_FIX,
+  before implementation).
+- **Backstop**: `hooks/dod-gate.sh` (Stop) reads `.work-state/artifacts/dod.json` (typed, not
+  prose). It blocks (exit 2) **only at a done-claim** — `pause.kind == "done"` or
+  `stage_cursor == "summary"` — with unmet or evidence-less items.
+
+Stop is always allowed (no DoD enforcement) when: `pause.kind` ∈
+`background_wait | user_checkpoint | needs_human | failed`; the workflow is
+`research` / `review` / `emergency`; the state is stale (`branch` ≠ current); or
+`.work-state/.dod-override` exists. `research`/`review`/`emergency` profiles intentionally
+omit the `dod`/`dod_complete` stages.
+
 ## Scope flags (used by `conditional` and `${scope.*}`)
 
 Resolved from touched/planned files against `.claude/team.config.json` `scope_map`

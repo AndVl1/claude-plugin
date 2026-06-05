@@ -439,6 +439,85 @@ else
   log_fail "workflows dir present" "$WF_DIR missing"
 fi
 
+echo ""
+echo "=== Stop dod-gate.sh (P8 — Definition of Done backstop) ==="
+REPO_ROOT="$(cd "$(dirname "$HOOKS_FILE")/.." && pwd)"
+cmd=$(get_cmd_idx Stop 1)
+
+mk_state() { mkdir -p "$1/.work-state/artifacts"; printf '%s' "$2" > "$1/.work-state/team-state.json"; }
+mk_dod()   { printf '%s' "$2" > "$1/.work-state/artifacts/dod.json"; }
+
+# mid-work (cursor implementation) → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate mid-work → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+# done-claim, no dod → block
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate done, no dod → block" 2 "BLOCK (DoD)" "$ec" "$out"; rm -rf "$sb"
+
+# done-claim, dod with open item → block
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary"}'
+mk_dod "$sb" '{"items":[{"criterion":"login works","verify_method":"manual-qa","status":"pending"}],"type_requirements_met":true}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate open item → block" 2 "BLOCK (DoD)" "$ec" "$out"; rm -rf "$sb"
+
+# done-claim, all met w/ evidence + type ok → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary"}'
+mk_dod "$sb" '{"items":[{"criterion":"login works","verify_method":"manual-qa","status":"met","evidence":"gist shows input+output"}],"type_requirements_met":true}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate complete → allow" 0 "DoD complete" "$ec" "$out"; rm -rf "$sb"
+
+# pause background_wait → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary","pause":{"kind":"background_wait"}}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate background_wait → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+# stale branch → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/OLD"},"stage_cursor":"summary"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate stale branch → allow" 0 "stale state" "$ec" "$out"; rm -rf "$sb"
+
+# emergency workflow → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"emergency","branch":"feat/x"},"stage_cursor":"summary"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate emergency → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+# override marker → allow
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary","pause":{"kind":"done"}}'
+touch "$sb/.work-state/.dod-override"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate override → allow" 0 "override present" "$ec" "$out"; rm -rf "$sb"
+
+# no state json → allow
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate no state → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+echo ""
+echo "=== PreToolUse Write|Edit root-cause reminder (BUG_FIX §4) ==="
+cmd=$(get_cmd_n "PreToolUse" "Write|Edit" 1)
+
+# BUG_FIX, no diagnosis root_cause → reminder, allow
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"BUG_FIX"}}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_FILE_PATH=src/foo.kt); ec=$?
+assert "root-cause reminder BUG_FIX no root → warn" 0 "root-cause gate" "$ec" "$out"; rm -rf "$sb"
+
+# BUG_FIX WITH root_cause → silent
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/artifacts"
+echo '{"classification":{"type":"BUG_FIX"}}' > "$sb/.work-state/team-state.json"
+echo '{"root_cause":"off-by-one in expiry check"}' > "$sb/.work-state/artifacts/diagnosis.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_FILE_PATH=src/foo.kt); ec=$?
+assert "root-cause reminder BUG_FIX with root → silent" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+# FEATURE → silent (not a bug)
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE"}}' > "$sb/.work-state/team-state.json"
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_FILE_PATH=src/foo.kt); ec=$?
+assert "root-cause reminder FEATURE → silent" 0 "" "$ec" "$out"; rm -rf "$sb"
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"

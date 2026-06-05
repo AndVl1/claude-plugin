@@ -123,6 +123,31 @@
         "files_modified": { "type": "array", "items": { "type": "string" } },
         "pr_url": { "type": ["string", "null"] }
       }
+    },
+    "dod": {
+      "type": "object",
+      "description": "Definition of Done — acceptance criteria fixed BEFORE code, each with how it is verified and (when closed) the proof. Produced early (clarify/discovery/diagnose), consumed by review/summary. The dod_complete gate and the Stop backstop (hooks/dod-gate.sh) require every item met WITH evidence before a task may claim done.",
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["criterion", "verify_method", "status"],
+            "properties": {
+              "criterion": { "type": "string", "description": "Concrete, observable acceptance criterion — not 'works' but what specifically must happen." },
+              "verify_method": { "type": "string", "description": "How it is checked: a manual-qa scenario, a screenshot that must show X, a test, a curl." },
+              "status": { "enum": ["pending", "met"], "description": "'met' requires non-empty evidence." },
+              "evidence": { "type": "string", "description": "Proof: gist URL, screenshot path + WHAT IS VISIBLE on it (input/output present? errors?), test output, curl result, root-cause statement. A bare checkbox is not proof." }
+            }
+          }
+        },
+        "type_requirements_met": {
+          "type": "boolean",
+          "description": "Confirms the per-type minimum items are present. Minimums: BUG_FIX → root cause named (not symptom) + repro-before reproduces + repro-after does not + affected scenario checked in manual-qa. FEATURE → each acceptance criterion mapped to a manual-qa step (both remote+docker modes if the feature touches agent/sessions). QA/report → published via publish-gist-report skill, screenshots actually visible (not broken). Any UI → DoD records what must be visible on the screenshot; on close, what is actually visible is written."
+        }
+      }
     }
   }
 }

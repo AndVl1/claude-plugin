@@ -45,6 +45,16 @@
         ]
       },
       {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v jq >/dev/null 2>&1 && [ -f .work-state/team-state.json ]; then T=$(jq -r '.classification.type // \"\"' .work-state/team-state.json 2>/dev/null); if [ \"$T\" = \"BUG_FIX\" ]; then RC=\"\"; [ -f .work-state/artifacts/diagnosis.json ] && RC=$(jq -r '.root_cause // \"\"' .work-state/artifacts/diagnosis.json 2>/dev/null); if [ -z \"$RC\" ]; then echo 'ℹ️ BUG_FIX root-cause gate (§4): document the root cause in .work-state/artifacts/diagnosis.json BEFORE editing code — state WHY this fix closes the root cause, not the symptom. Do at least 2 repro/log iterations first.'; fi; fi; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Task",
         "hooks": [
           {
@@ -162,6 +172,15 @@
           {
             "type": "command",
             "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then echo '📋 Final state:' && grep -E '^- \\[' \"$STATE_FILE\" | head -10; if grep -q '\\[ \\] Phase' \"$STATE_FILE\"; then echo '⚠️ INCOMPLETE PHASES: There are incomplete phases in team-state.md!'; fi; fi; mkdir -p .work-state && echo \"Session ended: $(date '+%Y-%m-%d %H:%M:%S')\" >> .work-state/sessions.log 2>/dev/null || true",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/dod-gate.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
             "timeout": 5
           }
         ]
