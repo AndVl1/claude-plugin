@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.1.0 — Slim interpreter + on-demand stage files (P9)
+
+Addresses two observed problems: the `/team` command file was ~45KB (loaded on every
+invocation), and with everything in one prose-heavy file the model tended to **bypass the
+workflow** — doing the task inline (git diff / Read / Bash) without classifying, picking a
+profile, or writing `team-state.json`, leaving the determinism/DoD gates dormant.
+
+### Changed
+- **`commands/team.md` halved** (~45KB → ~26KB). Per-stage prompt templates and review
+  criteria moved to `workflows/stages/<id>.md`, **read on demand** by the interpreter. team.md
+  now holds only governance (classification, interpreter loop, gates, DoD, state schema).
+- **Imperative interpreter**: a blunt "STOP — before ANY tool call, classify and write
+  `team-state.json`" up top + HARD RULE 1; consilium parallelism is now a HARD RULE ("launch
+  ALL roles in ONE message; announce the roster; never sequential/collapsed"). Alternative-
+  workflow prose removed (profiles already encode those).
+
+### Added
+- **`workflows/stages/*.md`** — 10 on-demand stage references (discovery, exploration, clarify,
+  architecture, diagnose, implementation, verify, review, review_fixes, summary). A test asserts
+  every profile stage id has a matching file.
+- **`hooks/team-nudge.sh`** (UserPromptSubmit) — on `/team` invocation, injects a reminder to
+  run Step A (classify + write `team-state.json` + load profile) before any other tool, and to
+  fan out consilium stages in parallel. Skips `/team-next`.
+- **Dormant-gates nudge** in `hooks/validate-state.sh` — when agents launch with a
+  `team-state.md` but no `team-state.json`, warns that the P4/P5/P8 gates are inactive.
+- Tests now 82 assertions; CI watches `hooks/team-nudge.sh`.
+
 ## 2.0.1
 
 - Removed the `/solo` command — unused; its role is covered by `/team` (QUICK tasks

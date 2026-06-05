@@ -111,13 +111,19 @@ Based on classification, select workflow:
 
 ## WORKFLOW INTERPRETER (authoritative)
 
-**This is how you execute a workflow. The phase prose further below is a REFERENCE for
-*how* to run each stage type — this section governs *which* stages run and *in what order*.**
+**This is how you execute a workflow. You are an interpreter that walks a profile's stages
+mechanically — you do NOT do the task inline.**
+
+> 🚫 **STOP — before ANY other tool call** (no `git diff`, no `Read`, no `Bash`, no `Task`):
+> run Step A. Classify the request and write `.work-state/team-state.json` with the
+> `CLASSIFICATION` + resolved `workflow` + `stages[]`. Starting to investigate/implement
+> inline — without classifying and writing state — is the #1 failure mode: it bypasses the
+> whole workflow (no profile, no consilium, dormant gates). Do Step A first, every time.
 
 The workflow is **data**, not prose. Profiles live in `workflows/*.json` (see
-`workflows/README.md` and `workflows/_schema.json`). You are an interpreter that walks a
-profile's stages mechanically. Same classification → same stage sequence. Do not improvise
-the order or the agent roster — both come from the profile.
+`workflows/README.md` and `workflows/_schema.json`). Per-stage prompt templates live in
+`workflows/stages/<id>.md`, read on demand. Same classification → same stage sequence. Do not
+improvise the order or the agent roster — both come from the profile.
 
 ### Step A — Classify and gate (P5)
 
@@ -175,22 +181,24 @@ Load `workflows/<name>.json`. For each stage in order:
 2. **consumes** → read each artifact from `.work-state/artifacts/<id>.json` and thread its
    content into the prompt. Do NOT paste prose blobs between phases — artifacts are the
    handoff contract (P2; schemas in `workflows/artifacts-schema.json`).
-3. **run by `type`**:
+3. **Read the stage file**: `workflows/stages/<stage id>.md` — use its prompt template /
+   criteria to run the stage. (Loaded on demand; do not run a stage from memory.)
+4. **run by `type`**:
    - `orchestrator` — you do it inline (no subagent).
    - `single` — one Task; resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
-   - `consilium` — launch `roles[]` in parallel (one message, multiple Task calls). Apply
-     `conditional[]` against scope flags, then `config.roster_overrides[<stage>]`, to add/remove
-     reviewers (replaces "EM picks agents").
+   - `consilium` — **launch ALL `roles[]` in ONE message with multiple Task calls (true
+     parallel fan-out). Never launch them sequentially or collapse to a single agent.** First
+     announce the roster ("launching N agents: …"), then apply `conditional[]` against scope
+     flags and `config.roster_overrides[<stage>]`, then fire them together.
    - `bash` — run the deterministic command.
    - `none` — skip.
-   Use the matching phase section below as the prompt template / criteria for that stage.
-4. **checkpoint** — interactive: stop and wait for the user. Autonomous: apply the stage's
+5. **checkpoint** — interactive: stop and wait for the user. Autonomous: apply the stage's
    `autonomous` decision and log it (do not wait).
-5. **gate** — do not mark the stage `done` until the gate holds (e.g. `branch_created`,
+6. **gate** — do not mark the stage `done` until the gate holds (e.g. `branch_created`,
    `confidence>=80`).
-6. **produces** → write the typed artifact to `.work-state/artifacts/<id>.json`.
-7. **loop** — if present, repeat `back_to` until `until` or `max_iterations` (then `on_exhausted`).
-8. Update `team-state.json` (`stage_cursor` + `stages[].status`) and mirror into
+7. **produces** → write the typed artifact to `.work-state/artifacts/<id>.json`.
+8. **loop** — if present, repeat `back_to` until `until` or `max_iterations` (then `on_exhausted`).
+9. Update `team-state.json` (`stage_cursor` + `stages[].status`) and mirror into
    `team-state.md`. Progress must stay monotonic (the P4 gate blocks phase-skipping).
 
 If no profile matches the classification, fall back to `standard`.
@@ -338,744 +346,28 @@ detect these, so treat this as a standing rule.
 
 ---
 
-## STAGE REFERENCE (phase details)
-
-> The sections below describe *how* to perform each stage type — prompt templates, agent
-> rosters, checkpoints, and outputs. The **WORKFLOW INTERPRETER** section above decides
-> *which* of these stages run and *in what order* (from `workflows/*.json`). When a profile
-> stage maps to a phase here, use that phase's prompts/criteria. These phase numbers are the
-> canonical full-feature sequence; other profiles reuse a subset.
-
-## FULL 7-PHASE WORKFLOW
-
-Use for COMPLEX features (profile `full-feature`). This is the primary workflow.
-
----
-
-### PHASE 1: DISCOVERY
-
-**Goal**: Understand what needs to be built
-
-**Actions**:
-1. **Create feature branch** (MANDATORY for FEATURE/REFACTOR tasks):
-   - Check current branch: `git branch --show-current`
-   - If not on main, switch: `git checkout main && git pull origin main`
-   - Create feature branch: `git checkout -b feat/<descriptive-name>`
-   - For bug fixes use: `fix/<bug-description>`
-   - For refactoring use: `refactor/<what-refactored>`
-   - Skip this step only for: INVESTIGATION, REVIEW, HOTFIX (emergency fixes can be on main)
-
-2. Create todo list with all phases
-
-3. If request unclear, ask:
-   - What problem are you solving?
-   - What should the feature do?
-   - Any constraints or requirements?
-
-4. Summarize understanding and confirm
-
-**Output**:
-- Feature branch created (if applicable)
-- Clear, confirmed feature description
-
-**Checkpoint**: ✋ WAIT for user confirmation before Phase 2
-
----
-
-### PHASE 2: CODEBASE EXPLORATION (Parallel)
-
-**Goal**: Deeply understand relevant code and patterns
-
-**Actions**:
-1. Launch **2-3 agents IN PARALLEL**, each exploring different aspects:
-
-   ```
-   Agent 1 (analyst):
-   "Find features similar to [feature] and trace their implementation.
-    Return list of 5-10 essential files to read."
-
-   Agent 2 (tech-researcher):
-   "Map the architecture and abstractions for [area].
-    Return list of 5-10 essential files to read."
-
-   Agent 3 (analyst):
-   "Analyze the current implementation of [related feature].
-    Return list of 5-10 essential files to read."
-   ```
-
-2. After ALL agents return:
-   - **Read all identified files** to build deep context
-   - Synthesize findings into comprehensive summary
-
-3. **For BUG_FIX/INVESTIGATION tasks**, launch **diagnostics agent** instead:
-   ```
-   Agent (diagnostics):
-   "Investigate the error: [error description/stacktrace].
-    Run 5-phase diagnostic workflow:
-    1. Static analysis of relevant code
-    2. System commands (build, logs, tests)
-    3. Add temporary debug instrumentation
-    4. Runtime analysis
-    5. Localize root cause with proposed fix"
-   ```
-
-**Output**:
-- Architecture patterns found (for features)
-- Similar features and their approaches
-- Key files and their purposes
-- Integration points
-- Technology decisions
-- **For bugs**: Root cause analysis and proposed fix
-
-**Checkpoint**: Present findings, proceed to Phase 3 (or Phase 2.5 for bugs)
-
----
-
-### PHASE 2.5: DEBUG CYCLE (Optional - BUG_FIX/INVESTIGATION only)
-
-**Goal**: Iteratively fix and verify bugs with diagnostics ↔ manual-qa loop
-
-**When to Use**:
-- BUG_FIX tasks where fix needs verification
-- Complex bugs with unclear reproduction
-- User requests "fix and verify" or "debug cycle"
-
-**Skip if**: Simple bug with obvious fix, or user prefers quick fix without verification
-
-**Actions**:
-
-1. **Diagnostics proposes fix** (from Phase 2):
-   - Root cause identified
-   - Fix proposed as diff
-   - Verification checklist created
-
-2. **User approves fix** → Developer applies changes:
-   ```
-   Agent (developer):
-   "Apply the fix proposed by diagnostics:
-    [paste diff or description]
-
-    Run build to verify compilation."
-   ```
-
-3. **Manual QA verifies** (launch manual-qa):
-   ```
-   Agent (manual-qa):
-   "Verify bug fix using diagnostics handoff:
-
-    ## Handoff from Diagnostics
-    [paste handoff section]
-
-    Execute verification checklist.
-    Test for regressions.
-    Provide verdict: PASS or FAIL."
-   ```
-
-4. **Evaluate verdict**:
-
-   **If PASS**:
-   ```
-   Bug fix verified. Proceeding to Phase 6.
-
-   Files changed: [list]
-   Verified by: manual-qa
-   ```
-   → Skip to Phase 6
-
-   **If FAIL**:
-   ```
-   Agent (diagnostics):
-   "Re-analyze bug with new evidence from manual-qa:
-
-    ## Handoff from Manual QA
-    [paste handoff section]
-
-    Refine diagnosis and propose new fix."
-   ```
-   → Repeat from step 2
-
-**Cycle Limit**: Maximum 3 iterations. If still failing, escalate to user for decision.
-
-**Output**:
-```
-DEBUG CYCLE COMPLETE
-
-Iterations: [N]
-Final Status: PASS / ESCALATED
-
-Fix Summary:
-- Root Cause: [description]
-- Solution: [description]
-- Files Modified: [list]
-
-Verification:
-- Manual QA: PASS
-- Evidence: [screenshots, logs]
-
-Ready for Phase 6: Quality Review
-```
-
-**Checkpoint**: On PASS → proceed to Phase 6. On FAIL after 3 iterations → ask user.
-
----
-
-### PHASE 3: CLARIFYING QUESTIONS
-
-**Goal**: Resolve ALL ambiguities before design
-
-**CRITICAL: DO NOT SKIP THIS PHASE FOR COMPLEX FEATURES**
-
-**Actions**:
-1. Review codebase findings + original request
-2. Identify underspecified aspects:
-   - Edge cases
-   - Error handling
-   - Integration points
-   - Backward compatibility
-   - Performance requirements
-   - Security considerations
-3. Present ALL questions in organized list
-
-**Example**:
-```
-Before designing architecture, I need to clarify:
-
-1. SCOPE: Should this integrate with [existing feature] or be standalone?
-2. EDGE CASES: What happens when [scenario]?
-3. ERROR HANDLING: How should [failure case] be handled?
-4. PERFORMANCE: Any latency/throughput requirements?
-5. SECURITY: Does this handle sensitive data?
-
-Please answer these before I proceed.
-```
-
-**Checkpoint**: ✋ WAIT for user answers. Do not proceed until answered.
-
----
-
-### PHASE 4: ARCHITECTURE DESIGN (Parallel)
-
-**Goal**: Design multiple approaches, let user choose
-
-**Actions**:
-1. Launch **2-3 architect agents IN PARALLEL** with different focuses:
-
-   ```
-   Agent 1 (architect - minimal):
-   "Design [feature] with MINIMAL CHANGES approach.
-    Focus: Smallest change, maximum reuse of existing code.
-    Provide: Component design, files to modify, implementation steps."
-
-   Agent 2 (architect - clean):
-   "Design [feature] with CLEAN ARCHITECTURE approach.
-    Focus: Maintainability, elegant abstractions, testability.
-    Provide: Component design, files to create/modify, implementation steps."
-
-   Agent 3 (architect - pragmatic):
-   "Design [feature] with PRAGMATIC BALANCE approach.
-    Focus: Speed + quality balance, reasonable abstractions.
-    Provide: Component design, files to modify, implementation steps."
-   ```
-
-2. Review all approaches
-3. Form your recommendation based on:
-   - Codebase findings
-   - User's constraints
-   - Task complexity
-   - Team context
-
-4. Present to user:
-   ```
-   I've designed 3 approaches:
-
-   APPROACH 1: Minimal Changes
-   - [Summary]
-   - Pros: [...]
-   - Cons: [...]
-   - Files: [list]
-
-   APPROACH 2: Clean Architecture
-   - [Summary]
-   - Pros: [...]
-   - Cons: [...]
-   - Files: [list]
-
-   APPROACH 3: Pragmatic Balance
-   - [Summary]
-   - Pros: [...]
-   - Cons: [...]
-   - Files: [list]
-
-   MY RECOMMENDATION: Approach [N] because [reasoning]
-
-   Which approach would you like to use?
-   ```
-
-**Checkpoint**: ✋ WAIT for user to choose approach
-
----
-
-### PHASE 5: IMPLEMENTATION
-
-**Goal**: Build the feature
-
-**DO NOT START WITHOUT USER APPROVAL**
-
-**Actions**:
-1. Update state file with chosen approach
-
-2. **Determine implementation scope**:
-   - Backend only → Launch developer
-   - Frontend only (React/TS) → Launch frontend-developer
-   - Frontend only (Kotlin web) → Launch developer-mobile with kotlin-web skill
-   - Mobile only → Launch developer-mobile
-   - Full-stack (web) → Launch developer + frontend-developer in parallel
-   - Full-stack (Kotlin web) → Launch developer + developer-mobile in parallel
-   - Full-stack (mobile) → Launch developer + developer-mobile in parallel
-   - New mobile project → Launch init-mobile first, then developer-mobile
-
-3. **For BACKEND implementation**, launch **developer agent**:
-   ```
-   Implement [feature] using [chosen approach].
-
-   Context:
-   - Codebase patterns: [from Phase 2]
-   - Clarified requirements: [from Phase 3]
-   - Architecture: [chosen design from Phase 4]
-
-   Files to modify: [list from architecture]
-
-   Requirements:
-   - Follow existing codebase conventions
-   - Commit incrementally (small, logical commits)
-   - Each commit should compile and tests should pass
-   - Use conventional commit messages (feat:, fix:, etc.)
-   - Run build after implementation
-   - Report all files created/modified
-   ```
-
-4. **For FRONTEND implementation**, launch **frontend-developer agent**:
-   ```
-   Implement [feature] Mini App UI using [chosen approach].
-
-   Context:
-   - Component patterns: [from Phase 2]
-   - Clarified requirements: [from Phase 3]
-   - Architecture: [chosen design from Phase 4]
-
-   Files to modify: [list from architecture]
-
-   Requirements:
-   - Follow React/TypeScript conventions
-   - Use @telegram-apps/ui components
-   - Handle loading, error, empty states
-   - Use proper TypeScript types (no 'any')
-   - Run npm run build to verify
-   - Report all files created/modified
-   ```
-
-5. **For MOBILE implementation**, launch **developer-mobile agent**:
-   ```
-   Implement [feature] for KMP Mobile App using [chosen approach].
-
-   Context:
-   - Architecture patterns: [from Phase 2]
-   - Clarified requirements: [from Phase 3]
-   - Architecture: [chosen design from Phase 4]
-
-   Files to modify: [list from architecture]
-
-   Requirements:
-   - Follow compose-arch patterns (Screen/View/Component)
-   - Use Decompose for navigation and state
-   - Use Metro DI for dependency injection
-   - Handle loading, error, empty states
-   - Use Value<T> for component state (not StateFlow)
-   - Run ./gradlew assemble to verify
-   - Report all files created/modified
-   ```
-
-6. **For FULL-STACK (web) features**, launch BOTH agents IN PARALLEL:
-   ```
-   # Launch in parallel (single message with multiple Task tool calls)
-
-   Agent 1 (developer):
-   "Implement backend for [feature]..."
-
-   Agent 2 (frontend-developer):
-   "Implement Mini App UI for [feature]..."
-   ```
-
-   **Integration contract**: Both agents work from Architect's API design:
-   - Backend creates endpoints with exact DTOs specified
-   - Frontend calls endpoints with exact DTOs specified
-   - Both verify against same contract
-
-7. **For FULL-STACK (mobile) features**, launch BOTH agents IN PARALLEL:
-   ```
-   Agent 1 (developer):
-   "Implement backend API for [feature]..."
-
-   Agent 2 (developer-mobile):
-   "Implement KMP Mobile UI for [feature]..."
-   ```
-
-   **Integration contract**: Same as web - both work from Architect's API design
-
-8. Review implementation (backend, frontend, and/or mobile)
-9. Run builds to verify
-10. Ensure all changes are committed with meaningful messages
-
-**Output**: Working implementation with all files listed
-
-**Checkpoint**: Proceed to Phase 6
-
----
-
-### PHASE 6: QUALITY REVIEW (Parallel)
-
-**Goal**: Ensure quality, find issues
-
-**Actions**:
-1. Launch **review agents IN PARALLEL** based on scope:
-
-   **BACKEND REVIEW AGENTS:**
-   ```
-   Agent 1 (qa):
-   "Review backend implementation for:
-    - Test coverage (write tests if missing)
-    - Functional correctness
-    - Edge case handling
-    Report issues with confidence score (0-100).
-    Only report issues with confidence >= 80."
-
-   Agent 2 (code-reviewer):
-   "Review implementation for:
-    - Code quality (simplicity, DRY, elegance)
-    - Project conventions compliance
-    - Maintainability
-    Report issues with confidence score (0-100).
-    Only report issues with confidence >= 80."
-
-   Agent 3 (security-tester): [if auth/data/API involved]
-   "Review implementation for:
-    - Security vulnerabilities (OWASP Top 10)
-    - Input validation
-    - Authentication/authorization
-    Report issues with confidence score (0-100).
-    Only report issues with confidence >= 80."
-
-   Agent 4 (devops): [if infrastructure changes]
-   "Review implementation for:
-    - Docker/Kubernetes configuration
-    - CI/CD impacts
-    - Environment variables
-    Report issues."
-   ```
-
-   **FRONTEND REVIEW AGENTS (for Mini App changes):**
-   ```
-   Agent 5 (qa):
-   "Review frontend implementation for:
-    - Component testing
-    - TypeScript type safety
-    - State management correctness
-    Report issues with confidence score (0-100)."
-
-   Agent 6 (manual-qa):
-   "Test Mini App UI at http://localhost:5173:
-    - Navigate through new features
-    - Verify API calls (read_network_requests)
-    - Check for console errors (read_console_messages)
-    - Take screenshots of key states
-    - Report any UI/UX issues found."
-
-   Agent 7 (security-tester):
-   "Review frontend security:
-    - XSS prevention (no dangerouslySetInnerHTML)
-    - initData handling
-    - Sensitive data exposure
-    - Console logging of secrets
-    Report issues with confidence score (0-100)."
-   ```
-
-   **MOBILE REVIEW AGENTS (for KMP Mobile App changes):**
-   ```
-   Agent (qa):
-   "Review mobile implementation for:
-    - Compose-arch compliance (Screen/View/Component layers)
-    - Component state handling (Value<T>, not StateFlow)
-    - UseCase patterns (Result<T> return)
-    - Decompose navigation correctness
-    Report issues with confidence score (0-100)."
-
-   Agent (manual-qa):
-   "Test KMP Mobile App on Android/iOS:
-    - Launch app: launch_app(package: 'com.your-project.admin')
-    - Navigate through new features: get_ui(), tap(), swipe()
-    - Verify all screens render correctly: screenshot()
-    - Check for crashes: get_logs(level: 'E')
-    - Test state preservation on back navigation
-    - Verify loading/error/empty states visible
-    - Report any UI/UX issues found with screenshots."
-
-   Agent (code-reviewer):
-   "Review KMP implementation for:
-    - One class per file rule
-    - No logic in Screen/View layers
-    - Proper DI with Metro
-    - Platform-specific code isolation
-    Report issues with confidence score (0-100)."
-   ```
-
-   **FULL-STACK REVIEW** (launch all applicable agents in parallel)
-
-2. Consolidate findings by severity:
-   - **CRITICAL** (confidence 90-100): Must fix
-   - **HIGH** (confidence 80-89): Should fix
-   - **MEDIUM** (confidence 70-79): Consider fixing
-
-3. Present to user:
-   ```
-   Quality Review Results:
-
-   CRITICAL ISSUES (must fix):
-   1. [Issue] - [file:line] - Confidence: 95%
-
-   HIGH PRIORITY (should fix):
-   1. [Issue] - [file:line] - Confidence: 85%
-
-   TESTS: [passed/failed count]
-
-   What would you like to do?
-   (A) Fix all issues now
-   (B) Fix critical only, defer others
-   (C) Proceed as-is
-   ```
-
-**Checkpoint**: ✋ WAIT for user decision
-
----
-
-### PHASE 6.5: REVIEW FIXES (Conditional)
-
-**Goal**: Fix issues identified in Phase 6 using specialized developer agents
-
-**When to Run**: User selected (A) or (B) in Phase 6 checkpoint
-
-**CRITICAL: Do NOT fix issues yourself. Delegate to specialized agents.**
-
-**Actions**:
-1. **Categorize issues by responsibility zone**:
-   - Backend issues (Kotlin, Spring, JOOQ, API) → `developer`
-   - Frontend issues (React, TypeScript, Mini App) → `frontend-developer`
-   - Mobile issues (KMP, Compose, Decompose) → `developer-mobile`
-   - DevOps issues (Docker, K8s, CI/CD) → `devops`
-   - Security-specific fixes → appropriate developer agent based on layer
-
-2. **Launch fix agents IN PARALLEL** for each zone with issues:
-
-   ```
-   # For BACKEND issues, launch developer agent:
-   Agent (developer):
-   "Fix the following issues identified during code review:
-
-   Issues to fix:
-   1. [Issue description] - [file:line]
-   2. [Issue description] - [file:line]
-
-   Context:
-   - These are review findings from Phase 6
-   - Follow existing codebase patterns
-   - Make minimal changes to fix each issue
-
-   Requirements:
-   - Fix ONLY the specified issues
-   - Do NOT refactor unrelated code
-   - Run ./gradlew build after fixes
-   - Commit each fix with clear message
-   - Report all files modified"
-
-   # For FRONTEND issues, launch frontend-developer agent:
-   Agent (frontend-developer):
-   "Fix the following issues identified during code review:
-
-   Issues to fix:
-   1. [Issue description] - [file:line]
-   2. [Issue description] - [file:line]
-
-   Context:
-   - These are review findings from Phase 6
-   - Follow React/TypeScript conventions
-   - Make minimal changes to fix each issue
-
-   Requirements:
-   - Fix ONLY the specified issues
-   - Do NOT refactor unrelated code
-   - Run npm run build after fixes
-   - Commit each fix with clear message
-   - Report all files modified"
-
-   # For MOBILE issues, launch developer-mobile agent:
-   Agent (developer-mobile):
-   "Fix the following issues identified during code review:
-
-   Issues to fix:
-   1. [Issue description] - [file:line]
-   2. [Issue description] - [file:line]
-
-   Context:
-   - These are review findings from Phase 6
-   - Follow compose-arch patterns strictly
-   - Make minimal changes to fix each issue
-
-   Requirements:
-   - Fix ONLY the specified issues
-   - Do NOT refactor unrelated code
-   - Run ./gradlew assemble after fixes
-   - Commit each fix with clear message
-   - Report all files modified"
-
-   # For DEVOPS issues, launch devops agent:
-   Agent (devops):
-   "Fix the following issues identified during code review:
-
-   Issues to fix:
-   1. [Issue description] - [file:line]
-
-   Context:
-   - These are review findings from Phase 6
-   - Make minimal changes to fix each issue
-
-   Requirements:
-   - Fix ONLY the specified issues
-   - Validate configurations
-   - Report all files modified"
-   ```
-
-3. **Wait for all fix agents to complete**
-
-4. **Verify fixes**:
-   - Run builds for affected layers
-   - Run tests if applicable
-
-5. **Optional: Quick re-review**
-   - For CRITICAL fixes, consider launching `qa` agent for spot-check
-   - Only if user explicitly requested verification
-
-**Output**:
-```
-Review Fixes Complete:
-
-Backend (developer agent):
-- Fixed: [issue 1]
-- Fixed: [issue 2]
-- Files: [list]
-- Build: PASS
-
-Frontend (frontend-developer agent):
-- Fixed: [issue 1]
-- Files: [list]
-- Build: PASS
-
-Mobile (developer-mobile agent):
-- Fixed: [issue 1]
-- Files: [list]
-- Build: PASS
-
-All issues addressed. Proceeding to Phase 7.
-```
-
-**Checkpoint**: Proceed to Phase 7
-
----
-
-### PHASE 7: SUMMARY
-
-**Goal**: Document accomplishments
-
-**Actions**:
-1. Mark all todos complete
-2. Summarize:
-   ```
-   FEATURE COMPLETE: [Feature Name]
-
-   What was built:
-   - [Key functionality 1]
-   - [Key functionality 2]
-
-   Key decisions:
-   - [Approach chosen and why]
-   - [Trade-offs made]
-
-   Files modified:
-   - [file1] - [what changed]
-   - [file2] - [what changed]
-
-   Tests:
-   - [test files added/modified]
-
-   Suggested next steps:
-   - [Recommendation 1]
-   - [Recommendation 2]
-   ```
-
-3. **Git workflow completion**:
-   - All changes should already be committed incrementally during Phase 5
-   - Verify all commits are present: `git log --oneline`
-   - If on feature branch, offer to:
-     - Push branch: `git push origin <branch-name>`
-     - Create PR (provide instructions or use `gh pr create`)
-   - If accidentally on main (should not happen!), warn user and suggest moving to feature branch
-
----
-
-## ALTERNATIVE WORKFLOWS
-
-### STANDARD WORKFLOW (Medium Complexity)
-
-Skip parallel architecture - use single architect:
-
-```
-Phase 1: Discovery
-Phase 2: Exploration (parallel)
-Phase 3: Clarifying Questions
-Phase 4: Architecture (single architect)
-Phase 5: Implementation
-Phase 6: Review (parallel)
-Phase 6.5: Review Fixes (if issues found, delegate to developer agents)
-Phase 7: Summary
-```
-
-### LIGHTWEIGHT WORKFLOW (Quick Tasks)
-
-```
-Phase 1: Quick Discovery (no parallel exploration)
-Phase 5: Implementation
-Phase 6: Quick Review (qa only)
-```
-
-### EMERGENCY WORKFLOW (Hotfix)
-
-```
-Phase 5: Minimal Fix (developer - no refactoring)
-Phase 6: Sanity Check (qa - focused testing only)
-```
-
-### RESEARCH WORKFLOW (Investigation)
-
-```
-Phase 1: Discovery
-Phase 2: Deep Exploration (3+ parallel agents)
-→ Return findings, no implementation
-```
-
-### REVIEW WORKFLOW (Code Review)
-
-```
-Phase 6: Parallel Review (code-reviewer || security-tester)
-→ Return findings only
-```
+## STAGE REFERENCE (loaded on demand)
+
+The *how* for each stage — prompt templates, agent rosters, checkpoints, outputs — lives in
+`workflows/stages/<stage-id>.md`, **not** in this file. **Before running a stage, `Read`
+`workflows/stages/<id>.md`** (the file name equals the stage `id` in the profile) and use its
+prompts/criteria. This keeps the command lean and loads stage detail only when needed.
+
+| stage id | file |
+|----------|------|
+| discovery | `workflows/stages/discovery.md` |
+| exploration | `workflows/stages/exploration.md` |
+| clarify | `workflows/stages/clarify.md` |
+| architecture | `workflows/stages/architecture.md` |
+| diagnose | `workflows/stages/diagnose.md` |
+| implementation | `workflows/stages/implementation.md` |
+| verify | `workflows/stages/verify.md` |
+| review | `workflows/stages/review.md` |
+| review_fixes | `workflows/stages/review_fixes.md` |
+| summary | `workflows/stages/summary.md` |
+
+Alternative-workflow prose (standard / lightweight / emergency / research / review) is now
+encoded as profiles in `workflows/*.json` — nothing to read here for those.
 
 ---
 
@@ -1179,9 +471,12 @@ Mark phases complete, add key outputs.
 0. **PROFILE-DRIVEN** - Execute via the WORKFLOW INTERPRETER: resolve a `workflows/*.json`
    profile from the classification and walk its stages. Do not improvise stage order or the
    agent roster — they come from the profile + `.claude/team.config.json`.
-1. **CLASSIFY FIRST** - Determine type + complexity before acting; write `team-state.json`
-   (with classification + workflow) BEFORE launching any agent (P5 gate enforces this)
-2. **PARALLEL EXPLORATION** - Always launch 2-3 agents in Phase 2
+1. **CLASSIFY FIRST, BEFORE ANY TOOL** - No `git diff`/`Read`/`Bash`/`Task` before you have
+   classified and written `team-state.json` (classification + workflow + stages). Doing the
+   task inline without a profile is the top failure mode — it bypasses the entire workflow.
+2. **PARALLEL CONSILIUM** - `consilium` stages launch ALL roles in ONE message (multiple Task
+   calls). Never sequential, never collapsed to one agent. Announce the roster first. Read the
+   stage file (`workflows/stages/<id>.md`) before running any stage.
 3. **NEVER SKIP QUESTIONS** - Phase 3 is mandatory for complex features
 4. **USER CHOOSES ARCHITECTURE** - Present options, don't decide alone
 5. **EXPLICIT APPROVAL** - Wait for user before implementation
@@ -1254,11 +549,13 @@ If validation fails, you will see: `⚠️ STATE SYNC WARNING: Update .work-stat
 
 **Task**: $ARGUMENTS
 
-Follow the **WORKFLOW INTERPRETER** section:
+Follow the **WORKFLOW INTERPRETER** section. Do **Step A first — before any other tool call**.
 
 **Step A — Classify & gate**: produce the `CLASSIFICATION` block, resolve the profile from
 the table, write `.work-state/team-state.json` (classification + workflow + stages) **before
-any agent**.
+any `git diff` / `Read` / `Bash` / `Task`**. If a stale `team-state.md`/`.json` from a previous
+task is present (different branch or different task), archive it and start fresh — do not
+inherit it.
 
 **Step B — Resolve config**: read `.claude/team.config.json` (or built-in defaults) for
 role→agent, role→model, and scope.

@@ -531,6 +531,44 @@ echo '{"classification":{"type":"FEATURE"}}' > "$sb/.work-state/team-state.json"
 out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_FILE_PATH=src/foo.kt); ec=$?
 assert "root-cause reminder FEATURE → silent" 0 "" "$ec" "$out"; rm -rf "$sb"
 
+echo ""
+echo "=== UserPromptSubmit team-nudge.sh (P9) ==="
+cmd=$(get_cmd_idx UserPromptSubmit 0)
+
+out=$(run_in_sandbox "$PWD" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" 2>/dev/null <<< '/fullstack-team:team review branch'); ec=$?
+assert "team-nudge on /team → reminder" 0 "WORKFLOW INTERPRETER" "$ec" "$out"
+
+out=$(printf '%s' '/team-next' | env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash -c "$cmd" 2>/dev/null); ec=$?
+[ -z "$out" ] && log_pass "team-nudge on /team-next → silent" || log_fail "team-nudge on /team-next → silent" "out='$out'"
+
+out=$(printf '%s' 'fix the login bug' | env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash -c "$cmd" 2>/dev/null); ec=$?
+[ -z "$out" ] && log_pass "team-nudge on non-team → silent" || log_fail "team-nudge on non-team → silent" "out='$out'"
+
+out=$(printf '%s' '{"prompt":"/team add pagination"}' | env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash -c "$cmd" 2>/dev/null); ec=$?
+assert "team-nudge stdin JSON → reminder" 0 "WORKFLOW INTERPRETER" "$ec" "$out"
+
+echo ""
+echo "=== validate-state dormant-gates nudge (json absent, md present) ==="
+vcmd=$(get_cmd_n "PreToolUse" "Task" 1)
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"; echo "# team state" > "$sb/.work-state/team-state.md"
+out=$(run_in_sandbox "$sb" "$vcmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT"); ec=$?
+assert "validate-state md-only → dormant nudge" 0 "DORMANT" "$ec" "$out"; rm -rf "$sb"
+
+echo ""
+echo "=== stage files referential integrity (P9) ==="
+missing=0
+for p in "$REPO_ROOT"/workflows/*.json; do
+  base=$(basename "$p" .json)
+  case "$base" in _schema|artifacts-schema|team.config.schema|team.config.example) continue ;; esac
+  for sid in $(jq -r '.stages[].id' "$p" 2>/dev/null); do
+    if [ ! -f "$REPO_ROOT/workflows/stages/$sid.md" ]; then
+      log_fail "stage file workflows/stages/$sid.md (used by $base)" "missing"
+      missing=$((missing+1))
+    fi
+  done
+done
+[ "$missing" = "0" ] && log_pass "every profile stage id has a workflows/stages/<id>.md"
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"
