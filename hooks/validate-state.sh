@@ -17,9 +17,17 @@
 set -u
 
 STATE="${TEAM_STATE_JSON:-.work-state/team-state.json}"
+STATE_MD="${TEAM_STATE_MD:-.work-state/team-state.md}"
 
-# No JSON state → markdown-only / not started. The legacy md hook handles those. Allow.
-[ -f "$STATE" ] || exit 0
+# No JSON state. If a markdown state exists, the run is on the legacy flow and the
+# determinism/DoD gates are DORMANT (they key off team-state.json) — nudge to migrate.
+# Either way, allow (never block the legacy path).
+if [ ! -f "$STATE" ]; then
+  if [ -f "$STATE_MD" ]; then
+    echo "ℹ️  validate-state: launching agents with team-state.md but no team-state.json — the P4/P5/P8 gates are DORMANT. Write .work-state/team-state.json (classification + workflow + stages) to activate deterministic enforcement."
+  fi
+  exit 0
+fi
 
 # No jq → cannot validate deterministically. Note once, allow.
 if ! command -v jq >/dev/null 2>&1; then

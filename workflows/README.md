@@ -17,6 +17,7 @@ mechanically. Same classification → same stage sequence.
 | `_schema.json` | JSON Schema for a profile (stage taxonomy, fields). |
 | `artifacts-schema.json` | Typed handoff contracts written to `.work-state/artifacts/<id>.json` (P2). |
 | `<name>.json` | One profile per workflow. |
+| `stages/<id>.md` | Per-stage prompt templates / criteria, **loaded on demand** by the interpreter (P9). The file name equals the stage `id`. Keeps `commands/team.md` lean — it holds only governance; the "how" of each stage is read only when that stage runs. |
 
 ## Stage taxonomy (`stage.type`)
 

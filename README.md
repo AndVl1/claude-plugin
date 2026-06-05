@@ -112,11 +112,13 @@ claude-plugin/
 │   ├── _schema.json          # Profile schema (stage taxonomy)
 │   ├── artifacts-schema.json # Typed handoff contracts (incl. dod)
 │   ├── team.config.example.json # Per-project role→agent/model/scope (copy to .claude/)
+│   ├── stages/               # Per-stage prompt templates (loaded on demand)
 │   └── <name>.json           # One profile per workflow
 ├── hooks/
 │   ├── hooks.json        # Safety + state hooks
 │   ├── validate-state.sh # Classification + transition gate
-│   └── dod-gate.sh       # Definition-of-Done backstop
+│   ├── dod-gate.sh       # Definition-of-Done backstop
+│   └── team-nudge.sh     # /team reminder to classify before working
 ├── tests/                # Cross-platform hook test suite
 ├── CHANGELOG.md
 └── README.md
