@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1
+
+- Removed the `/solo` command — unused; its role is covered by `/team` (QUICK tasks
+  auto-classify to the `lightweight` profile) and `/interview` for clarification.
+- Actualized README for 2.0.0 (14 agents, corrected agent table, custom-agent support, DoD /
+  classification gates, `jq` requirement).
+
 ## 2.0.0 — Deterministic workflows + Definition of Done
 
 Make `/team` execution deterministic by turning the workflow from prose into data.
@@ -11,8 +18,6 @@ finished — hence the major bump. Specifically:
 - A PreToolUse(Task) gate (`hooks/validate-state.sh`) blocks agent launches when
   `team-state.json` lacks a classification or its `workflow` mismatches `type×complexity`.
 - A Stop gate (`hooks/dod-gate.sh`) blocks a done-claim when the Definition of Done is unmet.
-- Removed the `/solo` command — use `/team` (it auto-classifies QUICK tasks to the lightweight
-  profile) or `/interview` for clarification.
 
 Both degrade gracefully (no `jq`, or legacy markdown-only state → no enforcement), and have
 escape hatches (`workflow_override`, `pause.kind`, `.work-state/.dod-override`). The plugin's
