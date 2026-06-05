@@ -1,0 +1,52 @@
+{
+  "name": "bug-fix",
+  "title": "Quick Bug Fix",
+  "description": "BUG_FIX with an obvious fix. Diagnostics → fix → review. For bugs needing iterative verification, the interpreter promotes to the debug-cycle profile (autonomous mode always uses debug-cycle).",
+  "match": { "type": ["BUG_FIX"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Discovery",
+      "type": "orchestrator",
+      "gate": "branch_created",
+      "produces": "discovery"
+    },
+    {
+      "id": "diagnose",
+      "title": "Diagnostics",
+      "type": "single",
+      "role": "diagnostics",
+      "consumes": ["discovery"],
+      "gate": "root_cause_documented",
+      "produces": ["diagnosis", "dod"]
+    },
+    {
+      "id": "implementation",
+      "title": "Apply Fix",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["diagnosis"],
+      "gate": "root_cause_documented",
+      "checkpoint": "approve_fix",
+      "autonomous": "proceed",
+      "produces": "implementation"
+    },
+    {
+      "id": "review",
+      "title": "Verify Fix",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["implementation", "diagnosis"],
+      "gate": "confidence>=80",
+      "produces": "review"
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "diagnosis", "review", "dod"],
+      "gate": "dod_complete",
+      "produces": "summary"
+    }
+  ]
+}

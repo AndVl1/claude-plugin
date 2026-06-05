@@ -1,0 +1,36 @@
+{
+  "name": "review",
+  "title": "Parallel Code Review",
+  "description": "REVIEW. Parallel review agents, findings only, no implementation.",
+  "match": { "type": ["REVIEW"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Scope the Review",
+      "type": "orchestrator",
+      "produces": "discovery"
+    },
+    {
+      "id": "review",
+      "title": "Parallel Review",
+      "type": "consilium",
+      "roles": ["code-reviewer", "qa"],
+      "parallel": true,
+      "conditional": [
+        { "if": "scope.has_security", "add": "security-tester" },
+        { "if": "scope.has_ui", "add": "manual-qa" },
+        { "if": "scope.has_infra", "add": "devops" }
+      ],
+      "consumes": ["discovery"],
+      "gate": "confidence>=80",
+      "produces": "review"
+    },
+    {
+      "id": "summary",
+      "title": "Findings",
+      "type": "orchestrator",
+      "consumes": ["review"],
+      "produces": "summary"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "fullstack-team/workflows/team.config.schema.json",
+  "title": "Per-project team configuration",
+  "description": "Project-level config read by the /team interpreter from `.claude/team.config.json`. Makes role→agent, model, and scope resolution deterministic and per-project instead of inferred at runtime. All fields optional — absent values fall back to built-in defaults (see workflows/team.config.example.json for the defaults).",
+  "type": "object",
+  "additionalProperties": false,
+  "patternProperties": { "^_": {} },
+  "properties": {
+    "roles": {
+      "type": "object",
+      "description": "Maps a workflow role (used in profile stages) to a concrete agent name passed verbatim as Task `subagent_type`. The agent may be ANY registered agent: a project agent in .claude/agents/<name> (bare name), a user agent in ~/.claude/agents/<name> (bare name), this plugin's agent (fullstack-team:<name>), or another plugin's agent (<plugin>:<name>). Unmapped roles fall back to the built-in default agent of the same name. New role keys (beyond the built-in set) are allowed — reference them from a custom profile or via roster_overrides.",
+      "additionalProperties": { "type": "string" }
+    },
+    "roster_overrides": {
+      "type": "object",
+      "description": "Per-stage roster adjustments applied by the interpreter AFTER a profile's `conditional[]` rules — lets a project customize who runs a stage without forking workflows/*.json. Keyed by stage id (e.g. 'review', 'architecture', 'exploration'). Values are agent names (same resolution as `roles`). `replace` wins over add/remove when present.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "add": { "type": "array", "items": { "type": "string" }, "description": "Extra agents to add to this stage's roster." },
+          "remove": { "type": "array", "items": { "type": "string" }, "description": "Agents/roles to drop from this stage's roster." },
+          "replace": { "type": "array", "items": { "type": "string" }, "description": "Replace the entire roster with exactly these agents." }
+        }
+      }
+    },
+    "models": {
+      "type": "object",
+      "description": "Maps a role to a model override (opus|sonnet|haiku). The wildcard key '*' sets the default. Priority: explicit role > '*' > agent's own frontmatter.",
+      "additionalProperties": { "enum": ["opus", "sonnet", "haiku"] }
+    },
+    "scope_map": {
+      "type": "array",
+      "description": "Ordered glob→scope rules. First matching glob (against a touched/planned file) sets the scope and its dev agent. Generated/extended by the /team-scope command (P3).",
+      "items": {
+        "type": "object",
+        "required": ["glob", "scope"],
+        "additionalProperties": false,
+        "properties": {
+          "glob": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] },
+          "scope": { "enum": ["backend", "frontend", "mobile", "devops"] },
+          "dev_agent": { "type": "string" }
+        }
+      }
+    },
+    "flags": {
+      "type": "object",
+      "description": "Glob expressions defining scope flags used by `conditional` rules in profiles.",
+      "additionalProperties": { "oneOf": [{ "type": "string" }, { "type": "array", "items": { "type": "string" } }] }
+    },
+    "design_system": {
+      "type": ["string", "null"],
+      "description": "Design system name; the `ui` review role reads ~/.claude/design-systems/<name>.md."
+    }
+  }
+}

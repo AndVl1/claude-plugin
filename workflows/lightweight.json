@@ -1,0 +1,42 @@
+{
+  "name": "lightweight",
+  "title": "Lightweight Quick Task",
+  "description": "QUICK features. No parallel exploration or architecture options. Implement + quick review.",
+  "match": { "type": ["FEATURE", "REFACTOR", "OPS"], "complexity": ["QUICK"] },
+  "stages": [
+    {
+      "id": "discovery",
+      "title": "Quick Discovery",
+      "type": "orchestrator",
+      "gate": "branch_created",
+      "produces": ["discovery", "dod"]
+    },
+    {
+      "id": "implementation",
+      "title": "Implementation",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["discovery"],
+      "checkpoint": "approve_implementation",
+      "autonomous": "proceed",
+      "produces": "implementation"
+    },
+    {
+      "id": "review",
+      "title": "Quick Review",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["implementation"],
+      "gate": "confidence>=80",
+      "produces": "review"
+    },
+    {
+      "id": "summary",
+      "title": "Summary",
+      "type": "orchestrator",
+      "consumes": ["implementation", "review", "dod"],
+      "gate": "dod_complete",
+      "produces": "summary"
+    }
+  ]
+}
