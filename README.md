@@ -71,7 +71,6 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | Command | Description |
 |---------|-------------|
 | `/fullstack-team:team` | 7-phase feature development with parallel agents |
-| `/fullstack-team:solo` | Incremental development workflow |
 | `/fullstack-team:interview` | Deep interview to clarify ideas before implementation |
 | `/fullstack-team:init-mobile` | Create KMP Compose Multiplatform project |
 | `/fullstack-team:update-readme` | Update project README |
@@ -123,11 +122,6 @@ model, and scope mapping lives in `.claude/team.config.json` (see
 ### Team Workflow
 ```
 /fullstack-team:team implement user authentication feature
-```
-
-### Solo Workflow
-```
-/fullstack-team:solo add pagination to the API
 ```
 
 ### Interview

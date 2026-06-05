@@ -11,6 +11,8 @@ finished — hence the major bump. Specifically:
 - A PreToolUse(Task) gate (`hooks/validate-state.sh`) blocks agent launches when
   `team-state.json` lacks a classification or its `workflow` mismatches `type×complexity`.
 - A Stop gate (`hooks/dod-gate.sh`) blocks a done-claim when the Definition of Done is unmet.
+- Removed the `/solo` command — use `/team` (it auto-classifies QUICK tasks to the lightweight
+  profile) or `/interview` for clarification.
 
 Both degrade gracefully (no `jq`, or legacy markdown-only state → no enforcement), and have
 escape hatches (`workflow_override`, `pause.kind`, `.work-state/.dod-override`). The plugin's
