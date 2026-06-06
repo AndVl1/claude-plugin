@@ -6,6 +6,8 @@
 
 ---
 
+**🚫 Delegate, don't DIY.** Your first action for this stage is the Task call(s). Do NOT read code / run git / grep yourself "to give the agent context" — the agent gathers its own context. Recon-before-delegate is how the orchestrator absorbs the task and the subagent never runs.
+
 ### PHASE 5: IMPLEMENTATION
 
 **Goal**: Build the feature

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.1
+
+- **Delegate-don't-DIY discipline** (HARD RULE 3 + a banner in each delegated stage file): for
+  `single`/`consilium` stages the Task call is the orchestrator's FIRST action — no reading
+  code / git / grep "to give the agent context" (that recon is the agent's job). Fixes the slip
+  (seen on a real 2.1.0 run) where the orchestrator said "I'll launch the diagnostics agent"
+  then investigated inline and the subagent never ran. Not hook-enforceable — a Bash-guard
+  can't tell the orchestrator's Bash from the delegated subagent's own Bash — so it's prompt
+  discipline.
+
 ## 2.1.0 — Slim interpreter + on-demand stage files (P9)
 
 Addresses two observed problems: the `/team` command file was ~45KB (loaded on every
