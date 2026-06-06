@@ -34,7 +34,7 @@
 
   "scope_map": [
     { "glob": ["**/iosApp/**", "**/composeApp/**", "**/commonMain/**", "**/androidMain/**"], "scope": "mobile", "dev_agent": "developer-mobile" },
-    { "glob": ["**/*.tsx", "**/*.jsx", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
+    { "glob": ["**/*.tsx", "**/*.jsx", "**/*.vue", "**/*.ts", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
     { "glob": ["**/Dockerfile", "**/*.yaml", "**/*.yml", "**/helm/**", "**/.github/**", "**/k8s/**"], "scope": "devops", "dev_agent": "devops" },
     { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend", "dev_agent": "developer-backend" }
   ],

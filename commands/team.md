@@ -341,7 +341,7 @@ detect these, so treat this as a standing rule.
 | **diagnostics** | Bug investigation, error analysis | sonnet | Phase 2 (bugs) |
 | **architect** | Design, APIs, implementation blueprint | opus | Phase 4 |
 | **developer** | Backend + Bot implementation (Kotlin/Spring) | sonnet | Phase 5 |
-| **frontend-developer** | Mini App frontend (React/TypeScript/Vite) | sonnet | Phase 5 |
+| **frontend-developer** | Web frontend — React/TS, Vue, Telegram Mini App, Kotlin/JS | sonnet | Phase 5 |
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
 | **qa** | Tests, code review | sonnet | Phase 6 |
@@ -359,13 +359,14 @@ detect these, so treat this as a standing rule.
 - Telegram Bot handlers (KTgBotAPI)
 - REST API endpoints for Mini App
 
-**frontend-developer** (Mini App):
-- React 18+ with TypeScript
-- Vite build configuration
-- @telegram-apps/sdk integration
-- Component development with @telegram-apps/ui
-- State management (Zustand)
-- Telegram WebApp API usage
+**frontend-developer** (DOM-based web frontends — stack-aware):
+- Detects the stack first, then reads the matching skill
+- React 18+ / TypeScript + Vite (`react-vite`)
+- Telegram Mini App: @telegram-apps/sdk + WebApp API (`telegram-mini-apps`)
+- Kotlin/JS + React/Vue (`kotlin-web`)
+- Vue/TS, Angular: no dedicated skill → Context7/DeepWiki + framework idioms
+- Reuses shared KMP business logic: Kotlin/JS consumes `commonMain` directly; TS frontends share via the API contract
+- NOT Compose WASM (canvas) — that is developer-mobile's zone
 
 **manual-qa** (UI Testing - Web & Mobile):
 - Chrome browser automation via MCP tools (Mini App)
@@ -385,8 +386,8 @@ detect these, so treat this as a standing rule.
 - Feature slice generation (kmp-feature-slice)
 - Ktor Client for networking
 - Room database (Android/iOS/JVM)
-- Kotlin web frontends: Compose WASM, Kotlin/JS+React, Kotlin/JS+Vue
-- Platforms: Android, iOS, Desktop, WASM, JS
+- Kotlin web: Compose WASM (canvas, shares commonMain + compose-arch). Kotlin/JS+React/Vue is frontend-developer's zone
+- Platforms: Android, iOS, Desktop, WASM
 
 **init-mobile** (Project Bootstrap):
 - Creates new KMP Compose Multiplatform projects

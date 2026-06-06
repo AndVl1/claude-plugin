@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.2.0 — Stack-aware frontend-developer
+
+Generalizes the `frontend-developer` agent from a hardcoded React/TS Mini App role into a single
+stack-aware frontend that detects the stack first and reads the matching skill. The team config
+already mapped one `frontend` role covering `.tsx`/`.jsx` and `src/jsMain`, so no new agents were
+split out — splitting into react/vue/angular agents would have produced empty shells (Angular and
+standalone Vue/TS have no skill).
+
+### Changed
+- **`agents/frontend-developer.md` rewritten as a stack router**: Step 0 stack detection (React/TS,
+  Vue/TS, Angular, Telegram Mini App, Kotlin/JS + React/Vue) → read the matching skill as the
+  source of truth. Honest fallback for un-skilled stacks (Vue/TS, Angular) via Context7/DeepWiki,
+  with an instruction to flag the missing skill.
+- **Slimmed the inline React patterns** that duplicated the `react-vite` skill; kept cross-cutting
+  policy (i18n, in-app dialogs, no-`any`, naming, output format).
+- **Compose WASM removed from the frontend zone** — canvas Compose sharing `commonMain` +
+  `compose-arch` belongs to `developer-mobile`; `wasmJs` tasks are flagged for re-route.
+  `commands/team.md` agent table + specializations updated to match the new zone boundary.
+- **`workflows/team.config.example.json`** frontend `scope_map` glob extended with `**/*.vue` and
+  `**/*.ts` so Vue and plain-TS files route to the frontend role.
+
+### Added
+- **KMP shared-logic section** in the agent (references `kmp` + `kotlin-web`, no duplication):
+  Kotlin/JS consumes `commonMain` directly; TS frontends share via the API contract
+  (generated types / OpenAPI), not by re-deriving business rules client-side.
+
 ## 2.1.2 — Orchestrator role boundary
 
 Strengthens 2.1.1's delegate-don't-DIY rule, which two real runs proved insufficient. In both
