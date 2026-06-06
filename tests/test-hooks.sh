@@ -537,6 +537,16 @@ cmd=$(get_cmd_idx UserPromptSubmit 0)
 
 out=$(run_in_sandbox "$PWD" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" 2>/dev/null <<< '/fullstack-team:team review branch'); ec=$?
 assert "team-nudge on /team → reminder" 0 "WORKFLOW INTERPRETER" "$ec" "$out"
+# emits the absolute plugin-assets root so the model reads workflow files from the real path
+assert "team-nudge on /team → emits plugin root" 0 "Plugin assets root: $REPO_ROOT" "$ec" "$out"
+
+# no CLAUDE_PLUGIN_ROOT (e.g. degraded env) → still reminder, just no root line
+out=$(cd "$REPO_ROOT" && env -u CLAUDE_PLUGIN_ROOT bash hooks/team-nudge.sh '/team review branch' 2>/dev/null); ec=$?
+if [ "$ec" = "0" ] && echo "$out" | grep -qF "WORKFLOW INTERPRETER" && ! echo "$out" | grep -qF "Plugin assets root"; then
+  log_pass "team-nudge without plugin root → reminder, no root line"
+else
+  log_fail "team-nudge without plugin root" "ec=$ec out='$out'"
+fi
 
 out=$(printf '%s' '/team-next' | env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash -c "$cmd" 2>/dev/null); ec=$?
 [ -z "$out" ] && log_pass "team-nudge on /team-next → silent" || log_fail "team-nudge on /team-next → silent" "out='$out'"

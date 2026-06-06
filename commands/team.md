@@ -413,6 +413,12 @@ The *how* for each stage — prompt templates, agent rosters, checkpoints, outpu
 `workflows/stages/<id>.md`** (the file name equals the stage `id` in the profile) and use its
 prompts/criteria. This keeps the command lean and loads stage detail only when needed.
 
+> **Path resolution.** These `workflows/...` paths are **relative to the plugin directory**, not
+> your project CWD — a bare `Read workflows/stages/<id>.md` will not resolve. The `/team` nudge
+> hook prints the absolute base (`📂 Plugin assets root: <abs>`) at invocation; read every
+> profile/stage/schema as `<abs>/workflows/...`. (Markdown bodies don't interpolate
+> `${CLAUDE_PLUGIN_ROOT}`, so the hook hands you the real path instead of copying anything.)
+
 | stage id | file |
 |----------|------|
 | discovery | `workflows/stages/discovery.md` |

@@ -24,11 +24,21 @@ inline (no subagent)" read as a blank cheque for unbounded inline work.
 - **HARD RULE 3** reworded to close the loophole: investigation/implementation must not be
   smuggled into an `orchestrator` `discovery` stage.
 
+### Added
+- **`team-nudge.sh` emits the absolute plugin-assets root** on `/team`. The `workflows/...`
+  profile/stage/schema files live in the plugin dir (the plugin cache at runtime), not the
+  user's CWD, so a bare `Read workflows/stages/<id>.md` doesn't resolve and the model had to
+  hunt the cache. Markdown bodies don't interpolate `${CLAUDE_PLUGIN_ROOT}`, but hook processes
+  get it — so the nudge prints `📂 Plugin assets root: <abs>` and the model reads lazily from
+  there. No copying into `~/.claude` (rejected: drift on plugin updates, two sources of truth,
+  unsupported by Claude Code) — single source of truth stays the plugin itself. team.md's STAGE
+  REFERENCE documents the resolution rule.
+
 ### Notes
 - Still prompt discipline, not hook-enforced — a guard hook cannot distinguish the orchestrator's
   `Bash` from a subagent's own `Bash`. A counter-based PreToolUse *nudge* (warn after N inline
   domain calls on a delegated stage) is the candidate next step if the boundary keeps slipping.
-- Tests now 86 assertions (role-boundary governance present in team.md + discovery.md); CI watches
+- Tests now 88 assertions (role-boundary governance + plugin-root emission); CI watches
   `commands/team.md`.
 
 ## 2.1.1
