@@ -569,6 +569,32 @@ for p in "$REPO_ROOT"/workflows/*.json; do
 done
 [ "$missing" = "0" ] && log_pass "every profile stage id has a workflows/stages/<id>.md"
 
+echo ""
+echo "=== orchestrator role boundary (delegate-don't-DIY governance) ==="
+TEAM_MD="$REPO_ROOT/commands/team.md"
+DISC_MD="$REPO_ROOT/workflows/stages/discovery.md"
+if [ -f "$TEAM_MD" ]; then
+  grep -q "ORCHESTRATOR ROLE BOUNDARY" "$TEAM_MD" \
+    && log_pass "team.md has ORCHESTRATOR ROLE BOUNDARY section" \
+    || log_fail "team.md ORCHESTRATOR ROLE BOUNDARY section" "missing"
+  grep -q "Smell test" "$TEAM_MD" \
+    && log_pass "team.md role boundary has a smell test" \
+    || log_fail "team.md role boundary smell test" "missing"
+  # HARD RULE 3 must reference the boundary so the discovery-as-license loophole is closed
+  grep -q "router, not the executor" "$TEAM_MD" \
+    && log_pass "HARD RULE 3 frames orchestrator as router" \
+    || log_fail "HARD RULE 3 router framing" "missing"
+else
+  log_fail "commands/team.md present" "$TEAM_MD missing"
+fi
+if [ -f "$DISC_MD" ]; then
+  grep -qi "Scope ceiling" "$DISC_MD" \
+    && log_pass "discovery.md has the orientation scope ceiling" \
+    || log_fail "discovery.md scope ceiling" "missing"
+else
+  log_fail "workflows/stages/discovery.md present" "$DISC_MD missing"
+fi
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"
