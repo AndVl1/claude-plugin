@@ -40,4 +40,15 @@ cat <<'EOF'
   Then walk workflows/<profile>.json, reading workflows/stages/<id>.md per stage. Do NOT do
   the task inline. consilium stages = launch all roles in ONE message (parallel Task fan-out).
 EOF
+
+# The profile/stage files live in the plugin dir (the plugin cache at runtime), NOT the user's
+# CWD — so a bare `Read workflows/stages/<id>.md` fails to resolve. ${CLAUDE_PLUGIN_ROOT} is set
+# for hook processes (but is NOT interpolated inside command/skill markdown), so emit the
+# absolute base here. The model reads workflow assets lazily from this real path — no copying
+# into ~/.claude, no drift on plugin updates.
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+  printf '📂 Plugin assets root: %s\n' "$CLAUDE_PLUGIN_ROOT"
+  printf '   Read profiles/stages from there, e.g. %s/workflows/stages/<id>.md and %s/workflows/<profile>.json\n' \
+    "$CLAUDE_PLUGIN_ROOT" "$CLAUDE_PLUGIN_ROOT"
+fi
 exit 0

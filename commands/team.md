@@ -184,7 +184,12 @@ Load `workflows/<name>.json`. For each stage in order:
 3. **Read the stage file**: `workflows/stages/<stage id>.md` — use its prompt template /
    criteria to run the stage. (Loaded on demand; do not run a stage from memory.)
 4. **run by `type`**:
-   - `orchestrator` — you do it inline (no subagent). Only discovery/clarify/summary are this type.
+   - `orchestrator` — you do it inline (no subagent). Only discovery/clarify/summary are this
+     type, and inline here means **orientation, not investigation** (see ROLE BOUNDARY below).
+     Discovery = create the branch, read state/config, skim structure to ROUTE the work. The
+     moment you need to understand *why* code behaves a way, read app logic in depth, touch
+     prod, build, or reproduce — that is `exploration`/`diagnose`, a **delegated** stage. Stop
+     and launch the agent; do not absorb it into "discovery".
    - `single` — **delegate to ONE Task. The Task call is your FIRST action of the stage.**
      Resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
    - `consilium` — **launch ALL `roles[]` in ONE message with multiple Task calls (true
@@ -210,6 +215,53 @@ Load `workflows/<name>.json`. For each stage in order:
    `team-state.md`. Progress must stay monotonic (the P4 gate blocks phase-skipping).
 
 If no profile matches the classification, fall back to `standard`.
+
+---
+
+## ORCHESTRATOR ROLE BOUNDARY (you are a router, not the executor)
+
+Two real runs (cc-proxy, chatkeep) failed the same way: the orchestrator classified correctly,
+then **did the entire investigation/implementation itself** — dozens of inline `Bash`/`Read`/
+`ssh`/`Edit` calls — and launched agents only afterward to *rubber-stamp* a diagnosis it had
+already reached. The team became decorative. Prose telling you "delegate" was already present
+and got ignored, because `discovery` being an `orchestrator` stage reads as a blank cheque for
+inline work. It is not. Hold this boundary literally.
+
+**The orchestrator's hands are tied to coordination.** Your allowed tool surface is:
+
+- `git` for branch/state plumbing (`branch`, `checkout`, `log --oneline`, `status`) — **not**
+  reading diffs/blame to understand the code.
+- Read/Write **only** these files: `.work-state/**` (state + artifacts), `.claude/team.config.json`,
+  `workflows/stages/<id>.md`. (Plus `MEMORY.md`/your own state mirror.)
+- `Task` (launch agents), `AskUserQuestion`, `TodoWrite`, and the `bash`-type stage's one
+  deterministic command from the profile.
+
+**Everything domain-shaped belongs to an agent**, never the orchestrator: reading application
+source to understand behavior, `grep`/`ast`/symbol search through the codebase, running builds /
+tests / repros, SSH to prod, DB queries, log spelunking, and **all** code edits. If a stage's
+`type` is `single` or `consilium`, the Task call is your **first** action for that stage — there
+is no "let me just look first."
+
+**Smell test — if any of these is true, STOP and delegate (it is not "discovery"):**
+- You're trying to answer *why* something behaves the way it does, or find a root cause.
+- You're reading app/business logic in depth (not just skimming filenames to route).
+- You're about to ssh/curl prod, query a DB, run a build/test, or reproduce a bug.
+- You're on your **third** domain `Bash`/`Read` of a stage and no `Task` has launched yet.
+- You caught yourself thinking "I'll hand it to the agent once I understand it" — backwards.
+
+**Anti-patterns (both observed in the wild):**
+- *cc-proxy*: said "I'll launch the diagnostics agent", then investigated inline; the subagent
+  never ran.
+- *chatkeep*: labeled 40+ inline prod/DB/koog-bytecode calls as "Phase 1: Discovery (inline)",
+  found the root cause solo, then fired a 3-agent consilium that only **confirmed** it. The
+  `research` profile's `consilium` exploration was reduced to a post-hoc stamp.
+
+Delegating costs a round-trip and feels slower than just doing it. Do it anyway — the agent
+gathering its own context (not you pre-chewing it) is the entire point, and it is what keeps the
+workflow deterministic and the gates live.
+
+This is prompt discipline, not hook-enforced (a guard hook cannot tell the orchestrator's `Bash`
+from a subagent's own `Bash`). The boundary holds only because you hold it.
 
 ---
 
@@ -361,6 +413,12 @@ The *how* for each stage — prompt templates, agent rosters, checkpoints, outpu
 `workflows/stages/<id>.md`** (the file name equals the stage `id` in the profile) and use its
 prompts/criteria. This keeps the command lean and loads stage detail only when needed.
 
+> **Path resolution.** These `workflows/...` paths are **relative to the plugin directory**, not
+> your project CWD — a bare `Read workflows/stages/<id>.md` will not resolve. The `/team` nudge
+> hook prints the absolute base (`📂 Plugin assets root: <abs>`) at invocation; read every
+> profile/stage/schema as `<abs>/workflows/...`. (Markdown bodies don't interpolate
+> `${CLAUDE_PLUGIN_ROOT}`, so the hook hands you the real path instead of copying anything.)
+
 | stage id | file |
 |----------|------|
 | discovery | `workflows/stages/discovery.md` |
@@ -485,9 +543,12 @@ Mark phases complete, add key outputs.
 2. **PARALLEL CONSILIUM** - `consilium` stages launch ALL roles in ONE message (multiple Task
    calls). Never sequential, never collapsed to one agent. Announce the roster first. Read the
    stage file (`workflows/stages/<id>.md`) before running any stage.
-3. **DELEGATE, DON'T DIY** - For `single`/`consilium` stages the Task call is your FIRST action.
-   Never `git`/`grep`/`Read` code "to give the agent context" — that recon is the agent's job.
-   Doing it yourself is how the orchestrator absorbs the task and the subagent never runs.
+3. **DELEGATE, DON'T DIY** - You are a router, not the executor (see ROLE BOUNDARY). For
+   `single`/`consilium` stages the Task call is your FIRST action. Never `git`/`grep`/`Read`
+   code, ssh prod, query a DB, build, repro, or edit "to give the agent context" — that is the
+   agent's job. And do NOT smuggle that work into an `orchestrator` `discovery` stage:
+   discovery is orientation only (branch + skim to route). Investigation/implementation done
+   inline = the subagent never runs and the consilium becomes a rubber-stamp.
 4. **NEVER SKIP QUESTIONS** - Phase 3 is mandatory for complex features
 5. **USER CHOOSES ARCHITECTURE** - Present options, don't decide alone
 6. **EXPLICIT APPROVAL** - Wait for user before implementation

@@ -1,5 +1,46 @@
 # Changelog
 
+## 2.1.2 — Orchestrator role boundary
+
+Strengthens 2.1.1's delegate-don't-DIY rule, which two real runs proved insufficient. In both
+(cc-proxy and chatkeep) the orchestrator classified correctly, then did the **entire**
+investigation/implementation inline (dozens of `Bash`/`Read`/`ssh`/`Edit` calls) and launched
+agents only afterward to rubber-stamp a diagnosis it had already reached — the consilium became
+decorative. Root cause of the slip: `discovery` is an `orchestrator`-type stage, and "you do it
+inline (no subagent)" read as a blank cheque for unbounded inline work.
+
+### Changed
+- **New `ORCHESTRATOR ROLE BOUNDARY` section in `commands/team.md`** — frames the orchestrator
+  as a **router, not the executor**, with an explicit allowed tool surface (git plumbing,
+  `.work-state/**` + config + stage files, `Task`/`AskUserQuestion`/`TodoWrite`) and an explicit
+  forbidden set (reading app source to understand behavior, codebase search, builds/tests/repros,
+  prod ssh, DB queries, log spelunking, **all** code edits — those belong to an agent). Includes a
+  5-point **smell test** ("on your 3rd domain `Bash`/`Read` with no `Task` launched → stop and
+  delegate") and the two real anti-patterns by name.
+- **`orchestrator`-type stages are now scoped to *orientation, not investigation*** (Step C + a
+  scope-ceiling banner in `workflows/stages/discovery.md`): discovery = branch + read state/config
+  + filename-level skim to route. The moment you need a root cause / deep app logic / prod / build
+  / repro → that is the delegated `exploration`/`diagnose` stage.
+- **HARD RULE 3** reworded to close the loophole: investigation/implementation must not be
+  smuggled into an `orchestrator` `discovery` stage.
+
+### Added
+- **`team-nudge.sh` emits the absolute plugin-assets root** on `/team`. The `workflows/...`
+  profile/stage/schema files live in the plugin dir (the plugin cache at runtime), not the
+  user's CWD, so a bare `Read workflows/stages/<id>.md` doesn't resolve and the model had to
+  hunt the cache. Markdown bodies don't interpolate `${CLAUDE_PLUGIN_ROOT}`, but hook processes
+  get it — so the nudge prints `📂 Plugin assets root: <abs>` and the model reads lazily from
+  there. No copying into `~/.claude` (rejected: drift on plugin updates, two sources of truth,
+  unsupported by Claude Code) — single source of truth stays the plugin itself. team.md's STAGE
+  REFERENCE documents the resolution rule.
+
+### Notes
+- Still prompt discipline, not hook-enforced — a guard hook cannot distinguish the orchestrator's
+  `Bash` from a subagent's own `Bash`. A counter-based PreToolUse *nudge* (warn after N inline
+  domain calls on a delegated stage) is the candidate next step if the boundary keeps slipping.
+- Tests now 88 assertions (role-boundary governance + plugin-root emission); CI watches
+  `commands/team.md`.
+
 ## 2.1.1
 
 - **Delegate-don't-DIY discipline** (HARD RULE 3 + a banner in each delegated stage file): for

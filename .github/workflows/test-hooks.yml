@@ -8,6 +8,7 @@ on:
       - 'hooks/dod-gate.sh'
       - 'hooks/team-nudge.sh'
       - 'workflows/**'
+      - 'commands/team.md'
       - 'tests/test-hooks.sh'
       - '.github/workflows/test-hooks.yml'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'hooks/dod-gate.sh'
       - 'hooks/team-nudge.sh'
       - 'workflows/**'
+      - 'commands/team.md'
       - 'tests/test-hooks.sh'
       - '.github/workflows/test-hooks.yml'
 

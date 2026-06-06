@@ -537,6 +537,16 @@ cmd=$(get_cmd_idx UserPromptSubmit 0)
 
 out=$(run_in_sandbox "$PWD" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" 2>/dev/null <<< '/fullstack-team:team review branch'); ec=$?
 assert "team-nudge on /team → reminder" 0 "WORKFLOW INTERPRETER" "$ec" "$out"
+# emits the absolute plugin-assets root so the model reads workflow files from the real path
+assert "team-nudge on /team → emits plugin root" 0 "Plugin assets root: $REPO_ROOT" "$ec" "$out"
+
+# no CLAUDE_PLUGIN_ROOT (e.g. degraded env) → still reminder, just no root line
+out=$(cd "$REPO_ROOT" && env -u CLAUDE_PLUGIN_ROOT bash hooks/team-nudge.sh '/team review branch' 2>/dev/null); ec=$?
+if [ "$ec" = "0" ] && echo "$out" | grep -qF "WORKFLOW INTERPRETER" && ! echo "$out" | grep -qF "Plugin assets root"; then
+  log_pass "team-nudge without plugin root → reminder, no root line"
+else
+  log_fail "team-nudge without plugin root" "ec=$ec out='$out'"
+fi
 
 out=$(printf '%s' '/team-next' | env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" bash -c "$cmd" 2>/dev/null); ec=$?
 [ -z "$out" ] && log_pass "team-nudge on /team-next → silent" || log_fail "team-nudge on /team-next → silent" "out='$out'"
@@ -568,6 +578,32 @@ for p in "$REPO_ROOT"/workflows/*.json; do
   done
 done
 [ "$missing" = "0" ] && log_pass "every profile stage id has a workflows/stages/<id>.md"
+
+echo ""
+echo "=== orchestrator role boundary (delegate-don't-DIY governance) ==="
+TEAM_MD="$REPO_ROOT/commands/team.md"
+DISC_MD="$REPO_ROOT/workflows/stages/discovery.md"
+if [ -f "$TEAM_MD" ]; then
+  grep -q "ORCHESTRATOR ROLE BOUNDARY" "$TEAM_MD" \
+    && log_pass "team.md has ORCHESTRATOR ROLE BOUNDARY section" \
+    || log_fail "team.md ORCHESTRATOR ROLE BOUNDARY section" "missing"
+  grep -q "Smell test" "$TEAM_MD" \
+    && log_pass "team.md role boundary has a smell test" \
+    || log_fail "team.md role boundary smell test" "missing"
+  # HARD RULE 3 must reference the boundary so the discovery-as-license loophole is closed
+  grep -q "router, not the executor" "$TEAM_MD" \
+    && log_pass "HARD RULE 3 frames orchestrator as router" \
+    || log_fail "HARD RULE 3 router framing" "missing"
+else
+  log_fail "commands/team.md present" "$TEAM_MD missing"
+fi
+if [ -f "$DISC_MD" ]; then
+  grep -qi "Scope ceiling" "$DISC_MD" \
+    && log_pass "discovery.md has the orientation scope ceiling" \
+    || log_fail "discovery.md scope ceiling" "missing"
+else
+  log_fail "workflows/stages/discovery.md present" "$DISC_MD missing"
+fi
 
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
