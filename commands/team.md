@@ -332,7 +332,7 @@ detect these, so treat this as a standing rule.
 
 ---
 
-## YOUR TEAM (14 Specialized Agents)
+## YOUR TEAM (15 Specialized Agents)
 
 | Agent | Role | Model | When Used |
 |-------|------|-------|-----------|
@@ -340,7 +340,8 @@ detect these, so treat this as a standing rule.
 | **tech-researcher** | Fast codebase exploration | haiku | Phase 2 |
 | **diagnostics** | Bug investigation, error analysis | sonnet | Phase 2 (bugs) |
 | **architect** | Design, APIs, implementation blueprint | opus | Phase 4 |
-| **developer** | Backend + Bot implementation (Kotlin/Spring) | sonnet | Phase 5 |
+| **developer-kotlin** | Backend + Bot implementation (Kotlin/Spring) | sonnet | Phase 5 |
+| **developer-go** | Go specialist — CLI, systems, microservices, WebSocket agents | sonnet | Phase 5 |
 | **frontend-developer** | Web frontend — React/TS, Vue, Telegram Mini App, Kotlin/JS | sonnet | Phase 5 |
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
@@ -353,11 +354,18 @@ detect these, so treat this as a standing rule.
 
 ### Agent Specializations
 
-**developer** (Backend):
+**developer-kotlin** (Backend):
 - Kotlin/Spring Boot services and controllers
 - JOOQ repositories and database migrations
 - Telegram Bot handlers (KTgBotAPI)
 - REST API endpoints for Mini App
+
+**developer-go** (Go specialist):
+- CLI tools and system programming
+- WebSocket/real-time agents
+- Microservices (gRPC/REST)
+- High-performance concurrent systems
+- Testing, benchmarks, profiling
 
 **frontend-developer** (DOM-based web frontends — stack-aware):
 - Detects the stack first, then reads the matching skill
