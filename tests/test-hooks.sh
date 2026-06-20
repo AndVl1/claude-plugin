@@ -670,6 +670,18 @@ CFG="$REPO_ROOT/workflows/team.config.example.json"
 jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \
   && log_pass "team.config maps go scope → developer-go" \
   || log_fail "go scope mapping" "missing in scope_map"
+# scope renamed backend → backend-kotlin (no bare 'backend' scope left)
+jq -e '[.scope_map[].scope] | index("backend-kotlin") and (index("backend") | not)' "$CFG" >/dev/null \
+  && log_pass "backend scope renamed to backend-kotlin" \
+  || log_fail "backend-kotlin rename" "scope still 'backend' or backend-kotlin missing"
+# precedence invariant: mobile MUST be ordered before backend-kotlin (KMP .kt disambiguation)
+mi=$(jq -r '[.scope_map[].scope] | index("mobile")' "$CFG")
+bi=$(jq -r '[.scope_map[].scope] | index("backend-kotlin")' "$CFG")
+if [ -n "$mi" ] && [ -n "$bi" ] && [ "$mi" -lt "$bi" ]; then
+  log_pass "scope_map orders mobile before backend-kotlin (first-match precedence)"
+else
+  log_fail "scope_map precedence" "mobile idx=$mi not before backend-kotlin idx=$bi"
+fi
 ! grep -q 'issue.zone.dev_agent' "$REPO_ROOT/workflows/full-feature.json" "$REPO_ROOT/workflows/standard.json" \
   && log_pass "review_fixes no longer uses undefined \${issue.zone.dev_agent}" \
   || log_fail "review_fixes role" "still references issue.zone.dev_agent"

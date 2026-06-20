@@ -40,9 +40,22 @@ against it. See `vibe-report/xpowers-analysis-2026-06-20.md` for the comparison.
   `discovery` agent gains a `Team-Config Discovery` mode as the engine (and learns that a
   cross-plugin agent's invoke name comes from its `plugin.json` `name`, not the directory).
 
+### Changed
+- **`backend` scope renamed to `backend-kotlin`** (disambiguates from `go`, now that both are
+  JVM-adjacent). Updated in `team.config.example.json`, schema, and the README example. **Breaking
+  for any project config that hard-codes `scope: "backend"`** — rename it to `backend-kotlin`.
+- **`scope` / `zone` enums loosened to free strings** in `team.config.schema.json` and
+  `artifacts-schema.json`. They previously hard-listed `[backend, frontend, mobile, devops]` —
+  which (a) never included `go` and (b) would have rejected the custom scopes `/init-team`
+  generates (`rust`, `python`, …). Scope names are now project-defined.
+- **`scope_map` precedence documented as first-match-wins** (README + a `_scope_map_order` note in
+  the example). `mobile` is ordered above `backend-kotlin` so a KMP `commonMain/*.kt` routes to
+  mobile, not the JVM backend; `**/*.kt` reaches `backend-kotlin` only outside mobile source sets.
+
 ### Tests
-- `tests/test-hooks.sh`: 88 → 118 assertions (safety-guard block/allow matrix, skill-suggest
-  fire/silence, verdict-gate normalization, Go scope wiring, `/init-team` + discovery mode).
+- `tests/test-hooks.sh`: 88 → 120 assertions (safety-guard block/allow matrix, skill-suggest
+  fire/silence, verdict-gate normalization, Go scope wiring, `/init-team` + discovery mode,
+  backend-kotlin rename + mobile-before-backend precedence invariant).
 
 ## 2.2.0 — Stack-aware frontend-developer
 

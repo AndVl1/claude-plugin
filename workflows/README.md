@@ -121,6 +121,14 @@ the best available agent, including agents from other installed plugins (e.g. `r
 Rust repo). This is the former P3. Without a config, the interpreter falls back to inferring
 scope from file globs using the built-in defaults below:
 
+> **`scope_map` precedence — first match wins.** Entries are evaluated top-to-bottom; the first
+> glob that matches a file decides its scope. Order specific paths above generic extensions. In
+> particular `mobile` is listed **above** `backend-kotlin`: a KMP file like
+> `shared/src/commonMain/Foo.kt` matches both `**/commonMain/**` (mobile) and `**/*.kt`
+> (backend-kotlin), and resolves to **mobile** only because mobile comes first. So `**/*.kt`
+> routes to `backend-kotlin` only when the file is **not** under a mobile source set (e.g. a
+> Spring `src/main/kotlin`). `scope` names are free-form (project-defined by `/init-team`).
+
 | flag | true when |
 |------|-----------|
 | `scope.has_security` | touches `**/auth/**`, `**/security/**`, `**/*crypto*`, or auth/secret logic |
@@ -143,7 +151,7 @@ registered agent**:
 // .claude/team.config.json
 {
   "roles": {
-    "backend": "my-go-backend",          // project agent
+    "backend-kotlin": "my-jvm-backend",   // project agent
     "security-tester": "acme-sec:pentester"  // another plugin's agent
   },
   "models": { "my-go-backend": "opus" },

@@ -79,7 +79,7 @@
         "files_touched": { "type": "array", "items": { "type": "string" } },
         "commits": { "type": "array", "items": { "type": "string" } },
         "build_status": { "enum": ["pass", "fail", "n/a"] },
-        "scope": { "type": "array", "items": { "enum": ["backend", "frontend", "mobile", "devops"] } }
+        "scope": { "type": "array", "items": { "type": "string" }, "description": "Project-defined scope names touched (e.g. backend-kotlin, go, frontend, mobile, devops, rust). Matches scope_map in team.config." }
       }
     },
     "debug": {
@@ -111,7 +111,7 @@
               "line": { "type": "integer" },
               "severity": { "enum": ["CRITICAL", "HIGH", "MEDIUM"] },
               "confidence": { "type": "integer", "minimum": 0, "maximum": 100 },
-              "zone": { "enum": ["backend", "frontend", "mobile", "devops"], "description": "Routes Phase 6.5 fix to the right developer role." }
+              "zone": { "type": "string", "description": "Project-defined scope name (e.g. backend-kotlin, go, frontend, mobile, devops, rust) matching a scope_map entry. Used to route the Phase 6.5 fix to the right developer role." }
             }
           },
           "description": "Only findings with confidence >= 80 are recorded."

@@ -130,7 +130,7 @@
    { "verdict": "needs_changes",
      "findings": [
        { "title": "Missing null-check on token", "file": "Auth.kt", "line": 42,
-         "severity": "HIGH", "confidence": 85, "zone": "backend" }
+         "severity": "HIGH", "confidence": 85, "zone": "backend-kotlin" }
      ],
      "tests": { "passed": 12, "failed": 0 } }
    ```
