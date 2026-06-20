@@ -64,7 +64,7 @@
         { "if": "scope.has_infra", "add": "devops" }
       ],
       "consumes": ["implementation", "architecture"],
-      "gate": "confidence>=80",
+      "gate": "verdict != reject",
       "checkpoint": "fix_decision",
       "autonomous": "fix CRITICAL+HIGH, then continue",
       "produces": "review"

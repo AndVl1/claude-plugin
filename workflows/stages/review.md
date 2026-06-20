@@ -106,14 +106,38 @@
 
    **FULL-STACK REVIEW** (launch all applicable agents in parallel)
 
-2. Consolidate findings by severity:
+2. Consolidate findings by severity (only confidence >= 80 is recorded):
    - **CRITICAL** (confidence 90-100): Must fix
    - **HIGH** (confidence 80-89): Should fix
    - **MEDIUM** (confidence 70-79): Consider fixing
 
-3. Present to user:
+3. **Emit the normalized verdict** — write the `review` artifact to
+   `.work-state/artifacts/review.json` (schema `review` in `artifacts-schema.json`). The
+   verdict is **derived mechanically from findings, never eyeballed**:
+
+   | condition | verdict |
+   |-----------|---------|
+   | any unresolved **CRITICAL** finding | `reject` |
+   | else any **HIGH** or **MEDIUM** finding | `needs_changes` |
+   | no findings | `approve` |
+
+   This is the deterministic replacement for the old "confidence>=80" judgement call. The
+   stage gate is `verdict != reject`: the interpreter may not mark review done while the
+   verdict is `reject` — drive `review_fixes` (or escalate) until CRITICALs are gone. A
+   missing/unknown verdict never auto-approves; treat it as `reject`.
+
+   ```json
+   { "verdict": "needs_changes",
+     "findings": [
+       { "title": "Missing null-check on token", "file": "Auth.kt", "line": 42,
+         "severity": "HIGH", "confidence": 85, "zone": "backend" }
+     ],
+     "tests": { "passed": 12, "failed": 0 } }
    ```
-   Quality Review Results:
+
+4. Present to user (verdict + findings):
+   ```
+   Quality Review — verdict: NEEDS_CHANGES
 
    CRITICAL ISSUES (must fix):
    1. [Issue] - [file:line] - Confidence: 95%
@@ -129,7 +153,7 @@
    (C) Proceed as-is
    ```
 
-**Checkpoint**: ✋ WAIT for user decision
+**Checkpoint**: ✋ WAIT for user decision (autonomous: fix CRITICAL+HIGH, then re-derive verdict)
 
 ---
 

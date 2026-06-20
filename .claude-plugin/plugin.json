@@ -1,7 +1,7 @@
 {
   "name": "fullstack-team",
   "description": "Fullstack development plugin with 15 specialized agents for Kotlin/Spring, Go, React, KMP Mobile, Telegram Bots, DevOps, Diagnostics, and AI integration",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "author": {
     "name": "AndVl1"
   },

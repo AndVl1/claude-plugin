@@ -77,7 +77,7 @@
         },
         "gate": {
           "type": "string",
-          "description": "Precondition that must hold before the interpreter may mark this stage done (e.g. 'branch_created', 'confidence>=80', 'tests_passed')."
+          "description": "Precondition that must hold before the interpreter may mark this stage done (e.g. 'branch_created', 'verdict != reject', 'root_cause_documented', 'dod_complete', 'tests_passed'). Review stages use 'verdict != reject' — keyed on the review artifact's normalized verdict (see artifacts-schema review.verdict), not a subjective confidence number."
         },
         "conditional": {
           "type": "array",

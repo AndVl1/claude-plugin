@@ -94,8 +94,12 @@
     },
     "review": {
       "type": "object",
-      "required": ["findings"],
+      "required": ["verdict", "findings"],
       "properties": {
+        "verdict": {
+          "enum": ["approve", "needs_changes", "reject"],
+          "description": "Normalized overall verdict, derived DETERMINISTICALLY from findings (not eyeballed): `reject` if any unresolved CRITICAL finding; else `needs_changes` if any HIGH or MEDIUM; else `approve`. The review stage gate keys on this (`verdict != reject`) instead of a subjective 'confidence>=80'. An unknown/missing verdict blocks closure — it never auto-approves."
+        },
         "findings": {
           "type": "array",
           "items": {

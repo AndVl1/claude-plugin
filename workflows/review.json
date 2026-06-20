@@ -22,7 +22,7 @@
         { "if": "scope.has_infra", "add": "devops" }
       ],
       "consumes": ["discovery"],
-      "gate": "confidence>=80",
+      "gate": "verdict != reject",
       "produces": "review"
     },
     {

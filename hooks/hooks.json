@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '🚀 Dream Team v2.3 Ready | 14 agents | State sync enabled'",
+            "command": "echo '🚀 Dream Team v2.3 Ready | 15 agents | State sync enabled'",
             "timeout": 5
           }
         ]
@@ -70,6 +70,16 @@
           {
             "type": "command",
             "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/validate-state.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/safety-guard.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
             "timeout": 5
           }
         ]
@@ -203,6 +213,15 @@
           {
             "type": "command",
             "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/team-nudge.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/skill-suggest.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
             "timeout": 5
           }
         ]
