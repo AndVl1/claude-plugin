@@ -9,6 +9,7 @@
     "diagnostics": "diagnostics",
     "architect": "architect",
     "backend": "developer-backend",
+    "go": "developer-go",
     "frontend": "frontend-developer",
     "mobile": "developer-mobile",
     "qa": "qa",
@@ -35,6 +36,7 @@
   "scope_map": [
     { "glob": ["**/iosApp/**", "**/composeApp/**", "**/commonMain/**", "**/androidMain/**"], "scope": "mobile", "dev_agent": "developer-mobile" },
     { "glob": ["**/*.tsx", "**/*.jsx", "**/*.vue", "**/*.ts", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
+    { "glob": ["**/*.go", "**/go.mod", "**/go.sum"], "scope": "go", "dev_agent": "developer-go" },
     { "glob": ["**/Dockerfile", "**/*.yaml", "**/*.yml", "**/helm/**", "**/.github/**", "**/k8s/**"], "scope": "devops", "dev_agent": "devops" },
     { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend", "dev_agent": "developer-backend" }
   ],

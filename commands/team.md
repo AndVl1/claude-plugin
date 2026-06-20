@@ -191,7 +191,7 @@ Load `workflows/<name>.json`. For each stage in order:
      prod, build, or reproduce — that is `exploration`/`diagnose`, a **delegated** stage. Stop
      and launch the agent; do not absorb it into "discovery".
    - `single` — **delegate to ONE Task. The Task call is your FIRST action of the stage.**
-     Resolve `role` (incl. `${scope.dev_agent}` / `${issue.zone.dev_agent}`).
+     Resolve `role` (incl. `${scope.dev_agent}`, resolved from the dominant file scope).
    - `consilium` — **launch ALL `roles[]` in ONE message with multiple Task calls (true
      parallel fan-out), as your FIRST action. Never sequential, never collapsed to one agent.**
      First announce the roster ("launching N agents: …"), then apply `conditional[]` against

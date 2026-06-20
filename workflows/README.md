@@ -124,7 +124,7 @@ interpreter infers scope from file globs using built-in defaults:
 | `scope.has_security` | touches `**/auth/**`, `**/security/**`, `**/*crypto*`, or auth/secret logic |
 | `scope.has_ui` | scope includes `frontend` or `mobile` |
 | `scope.has_infra` | touches Docker/K8s/CI/CD/Helm |
-| `${scope.dev_agent}` | `developer-backend` \| `frontend-developer` \| `developer-mobile` per dominant scope |
+| `${scope.dev_agent}` | `developer-backend` \| `developer-go` \| `frontend-developer` \| `developer-mobile` per dominant scope |
 
 ## Custom agents (project / user / other plugins)
 
