@@ -115,16 +115,26 @@ omit the `dod`/`dod_complete` stages.
 
 ## Scope flags (used by `conditional` and `${scope.*}`)
 
-Resolved from touched/planned files against `.claude/team.config.json` `scope_map`
-(a dedicated `/team-scope` command will generate this per project — P3). Until then the
-interpreter infers scope from file globs using built-in defaults:
+Resolved from touched/planned files against `.claude/team.config.json` `scope_map`. Run
+**`/init-team`** to generate that file for your project — it detects the stacks and maps each to
+the best available agent, including agents from other installed plugins (e.g. `rust-agents` for a
+Rust repo). This is the former P3. Without a config, the interpreter falls back to inferring
+scope from file globs using the built-in defaults below:
+
+> **`scope_map` precedence — first match wins.** Entries are evaluated top-to-bottom; the first
+> glob that matches a file decides its scope. Order specific paths above generic extensions. In
+> particular `mobile` is listed **above** `backend-kotlin`: a KMP file like
+> `shared/src/commonMain/Foo.kt` matches both `**/commonMain/**` (mobile) and `**/*.kt`
+> (backend-kotlin), and resolves to **mobile** only because mobile comes first. So `**/*.kt`
+> routes to `backend-kotlin` only when the file is **not** under a mobile source set (e.g. a
+> Spring `src/main/kotlin`). `scope` names are free-form (project-defined by `/init-team`).
 
 | flag | true when |
 |------|-----------|
 | `scope.has_security` | touches `**/auth/**`, `**/security/**`, `**/*crypto*`, or auth/secret logic |
 | `scope.has_ui` | scope includes `frontend` or `mobile` |
 | `scope.has_infra` | touches Docker/K8s/CI/CD/Helm |
-| `${scope.dev_agent}` | `developer-backend` \| `frontend-developer` \| `developer-mobile` per dominant scope |
+| `${scope.dev_agent}` | `developer-backend` \| `developer-go` \| `frontend-developer` \| `developer-mobile` per dominant scope |
 
 ## Custom agents (project / user / other plugins)
 
@@ -141,7 +151,7 @@ registered agent**:
 // .claude/team.config.json
 {
   "roles": {
-    "backend": "my-go-backend",          // project agent
+    "backend-kotlin": "my-jvm-backend",   // project agent
     "security-tester": "acme-sec:pentester"  // another plugin's agent
   },
   "models": { "my-go-backend": "opus" },

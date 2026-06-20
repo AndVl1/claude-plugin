@@ -64,7 +64,7 @@
         { "if": "scope.has_infra", "add": "devops" }
       ],
       "consumes": ["implementation", "architecture"],
-      "gate": "confidence>=80",
+      "gate": "verdict != reject",
       "checkpoint": "fix_decision",
       "autonomous": "fix CRITICAL+HIGH, then continue",
       "produces": "review"
@@ -73,7 +73,7 @@
       "id": "review_fixes",
       "title": "Review Fixes",
       "type": "single",
-      "role": "${issue.zone.dev_agent}",
+      "role": "${scope.dev_agent}",
       "consumes": ["review"],
       "skip_if": "review.findings == []"
     },

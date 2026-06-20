@@ -605,6 +605,114 @@ else
   log_fail "workflows/stages/discovery.md present" "$DISC_MD missing"
 fi
 
+echo ""
+echo "=== PreToolUse Bash safety-guard.sh (fail-closed) ==="
+SG="$REPO_ROOT/hooks/safety-guard.sh"
+if [ -f "$SG" ]; then
+  # must BLOCK (exit 2)
+  for bad in "rm -rf /" "rm -rf ~" "rm -rf \$HOME" "sudo rm x" "chmod -R 777 ." "git push --force origin feat/x"; do
+    out=$(CLAUDE_COMMAND="$bad" bash "$SG" 2>&1); ec=$?
+    assert "safety-guard blocks: $bad" 2 "BLOCK" "$ec" "$out"
+  done
+  # must ALLOW (exit 0) — legit dev commands
+  for ok in "rm -rf build/" "rm -rf node_modules" "git push origin feat/x" "git push --force-with-lease origin feat/x" "chmod +x file.sh" "ls -la"; do
+    out=$(CLAUDE_COMMAND="$ok" bash "$SG" 2>&1); ec=$?
+    assert "safety-guard allows: $ok" 0 "" "$ec" "$out"
+  done
+  # wired into hooks.json as a Bash matcher
+  jq -e '[.hooks.PreToolUse[] | select(.matcher == "Bash")] | length >= 1' "$HOOKS_FILE" >/dev/null \
+    && log_pass "safety-guard wired as PreToolUse Bash matcher" \
+    || log_fail "safety-guard wired as PreToolUse Bash matcher" "no Bash matcher in hooks.json"
+else
+  log_fail "hooks/safety-guard.sh present" "$SG missing"
+fi
+
+echo ""
+echo "=== UserPromptSubmit skill-suggest.sh (soft auto-activation) ==="
+SS="$REPO_ROOT/hooks/skill-suggest.sh"
+if [ -f "$SS" ]; then
+  out=$(bash "$SS" "fix the goroutine deadlock in the worker" 2>&1); ec=$?
+  assert "skill-suggest fires on bug+go" 0 "go-patterns" "$ec" "$out"
+  out=$(bash "$SS" "add a new spring controller for orders" 2>&1); ec=$?
+  assert "skill-suggest fires on feature+spring" 0 "kotlin-spring-boot" "$ec" "$out"
+  # stays silent: no stack keyword, /team invocation, chitchat
+  out=$(bash "$SS" "fix the thing" 2>&1); [ -z "$out" ] \
+    && log_pass "skill-suggest silent without stack keyword" || log_fail "skill-suggest silent without stack" "out='$out'"
+  out=$(bash "$SS" "/team add oauth" 2>&1); [ -z "$out" ] \
+    && log_pass "skill-suggest silent on /team (team-nudge owns it)" || log_fail "skill-suggest silent on /team" "out='$out'"
+  out=$(bash "$SS" "what is the weather today" 2>&1); [ -z "$out" ] \
+    && log_pass "skill-suggest silent on chitchat" || log_fail "skill-suggest silent on chitchat" "out='$out'"
+  jq -e '[.hooks.UserPromptSubmit[]] | length >= 2' "$HOOKS_FILE" >/dev/null \
+    && log_pass "skill-suggest wired as second UserPromptSubmit hook" \
+    || log_fail "skill-suggest wired" "UserPromptSubmit has <2 hooks"
+else
+  log_fail "hooks/skill-suggest.sh present" "$SS missing"
+fi
+
+echo ""
+echo "=== review verdict normalization (P-1) ==="
+# every review stage gate is the normalized verdict, not a subjective confidence number
+badgate=0
+for p in "$REPO_ROOT"/workflows/{bug-fix,full-feature,emergency,lightweight,review,standard}.json; do
+  if grep -q 'confidence>=80' "$p"; then log_fail "review gate normalized in $(basename "$p")" "still confidence>=80"; badgate=$((badgate+1)); fi
+done
+[ "$badgate" = "0" ] && log_pass "no review stage uses the old confidence>=80 gate"
+grep -q 'verdict != reject' "$REPO_ROOT/workflows/full-feature.json" \
+  && log_pass "full-feature review gate = verdict != reject" \
+  || log_fail "full-feature review gate" "missing verdict != reject"
+jq -e '.definitions.review.required | index("verdict")' "$REPO_ROOT/workflows/artifacts-schema.json" >/dev/null \
+  && log_pass "review artifact requires a normalized verdict" \
+  || log_fail "review artifact verdict" "verdict not required in schema"
+
+echo ""
+echo "=== Go scope wiring (bug #2) ==="
+CFG="$REPO_ROOT/workflows/team.config.example.json"
+jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \
+  && log_pass "team.config maps go scope → developer-go" \
+  || log_fail "go scope mapping" "missing in scope_map"
+# scope renamed backend → backend-kotlin (no bare 'backend' scope left)
+jq -e '[.scope_map[].scope] | index("backend-kotlin") and (index("backend") | not)' "$CFG" >/dev/null \
+  && log_pass "backend scope renamed to backend-kotlin" \
+  || log_fail "backend-kotlin rename" "scope still 'backend' or backend-kotlin missing"
+# precedence invariant: mobile MUST be ordered before backend-kotlin (KMP .kt disambiguation)
+mi=$(jq -r '[.scope_map[].scope] | index("mobile")' "$CFG")
+bi=$(jq -r '[.scope_map[].scope] | index("backend-kotlin")' "$CFG")
+if [ -n "$mi" ] && [ -n "$bi" ] && [ "$mi" -lt "$bi" ]; then
+  log_pass "scope_map orders mobile before backend-kotlin (first-match precedence)"
+else
+  log_fail "scope_map precedence" "mobile idx=$mi not before backend-kotlin idx=$bi"
+fi
+! grep -q 'issue.zone.dev_agent' "$REPO_ROOT/workflows/full-feature.json" "$REPO_ROOT/workflows/standard.json" \
+  && log_pass "review_fixes no longer uses undefined \${issue.zone.dev_agent}" \
+  || log_fail "review_fixes role" "still references issue.zone.dev_agent"
+
+echo ""
+echo "=== /init-team command (P3 — project agent config) ==="
+IT="$REPO_ROOT/commands/init-team.md"
+if [ -f "$IT" ]; then
+  grep -q '.claude/team.config.json' "$IT" \
+    && log_pass "init-team writes .claude/team.config.json" \
+    || log_fail "init-team output target" "no .claude/team.config.json reference"
+  grep -q 'plugins' "$IT" && grep -qi 'cross-plugin\|other installed plugins\|~/.claude/plugins' "$IT" \
+    && log_pass "init-team does cross-plugin agent discovery" \
+    || log_fail "init-team cross-plugin scan" "missing"
+  grep -qi 'not the directory name\|plugin.json' "$IT" \
+    && log_pass "init-team resolves invoke_name from plugin.json name (not dir)" \
+    || log_fail "init-team namespace rule" "missing plugin.json-name caveat"
+  grep -qi 'dry-run' "$IT" \
+    && log_pass "init-team dry-runs the scope_map before finishing" \
+    || log_fail "init-team dry-run" "missing"
+  grep -qi 'AskUserQuestion\|confirm' "$IT" \
+    && log_pass "init-team confirms mapping interactively" \
+    || log_fail "init-team confirmation" "missing"
+else
+  log_fail "commands/init-team.md present" "$IT missing"
+fi
+# the orphaned discovery agent now has a consumer (bug #5)
+grep -qi 'Team-Config Discovery' "$REPO_ROOT/agents/discovery.md" \
+  && log_pass "discovery agent has a Team-Config mode (no longer orphaned)" \
+  || log_fail "discovery Team-Config mode" "missing"
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"

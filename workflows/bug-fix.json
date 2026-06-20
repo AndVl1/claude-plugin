@@ -37,7 +37,7 @@
       "type": "single",
       "role": "qa",
       "consumes": ["implementation", "diagnosis"],
-      "gate": "confidence>=80",
+      "gate": "verdict != reject",
       "produces": "review"
     },
     {

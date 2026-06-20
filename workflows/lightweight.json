@@ -27,7 +27,7 @@
       "type": "single",
       "role": "qa",
       "consumes": ["implementation"],
-      "gate": "confidence>=80",
+      "gate": "verdict != reject",
       "produces": "review"
     },
     {

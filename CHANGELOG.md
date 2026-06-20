@@ -1,5 +1,62 @@
 # Changelog
 
+## 2.4.0 — Review verdicts + safety hooks + /init-team project config
+
+Borrows three patterns from the xpowers/superpowers plugin (deterministic verdicts, fail-closed
+guards, soft skill auto-activation) and fixes latent wiring bugs found while auditing this plugin
+against it. See `vibe-report/xpowers-analysis-2026-06-20.md` for the comparison.
+
+### Fixed
+- **`review_fixes` referenced an undefined `${issue.zone.dev_agent}`** (full-feature + standard):
+  the variable was never populated anywhere, so the stage would fail to resolve a developer on
+  any CRITICAL/HIGH finding. Resolved to `${scope.dev_agent}` — the variable actually computed
+  from the dominant file scope (same one `implementation` uses).
+- **Go was not wired into scope routing**: `developer-go` shipped in 2.3.0 but `scope_map` had no
+  `**/*.go` entry, so Go tasks misrouted to the Kotlin backend developer. Added a `go` scope
+  (`**/*.go`, `go.mod`, `go.sum` → `developer-go`) + `roles.go` + README.
+- **Go skills used lowercase `skill.md`** (vs `SKILL.md` everywhere else) — not discovered on
+  case-sensitive filesystems (Linux/CI). Renamed all three (`go-patterns`, `go-concurrency`,
+  `go-microservices`).
+- SessionStart banner said "14 agents" → 15.
+
+### Added
+- **Normalized review verdict (P-1)**: the `review` artifact now requires a top-level `verdict`
+  (`approve` | `needs_changes` | `reject`) derived **mechanically** from findings (reject = any
+  CRITICAL; needs_changes = any HIGH/MEDIUM; approve = none). Every review-stage gate changed from
+  the subjective `confidence>=80` to `verdict != reject`. A missing verdict never auto-approves.
+- **`hooks/safety-guard.sh` (P-4)**: PreToolUse(Bash) fail-closed guard blocking catastrophic
+  `rm -rf` of root/home/cwd-wide paths, `sudo`, recursive `chmod 777`, and history-rewriting
+  `git push --force` (allows `--force-with-lease`). Narrowly scoped — `rm -rf build/` and
+  `rm -rf node_modules` still pass.
+- **`hooks/skill-suggest.sh` (P-5)**: soft UserPromptSubmit auto-activation. On a plain request
+  it surfaces the matching workflow + domain skills, but only when it sees BOTH an intent verb
+  AND a concrete stack keyword — silent on chit-chat and on `/team` (team-nudge owns that).
+- **`/init-team` command (former P3)**: detects the project's stacks and generates
+  `.claude/team.config.json`, mapping each scope to the best available agent — **including agents
+  from other installed plugins** (e.g. `rust-agents` for a Rust repo). Fixes the misrouting where
+  an unmapped stack (`**/*.rs` with no `scope_map` entry) left `${scope.dev_agent}` unresolved and
+  the orchestrator grabbed the nearest dev agent. Interactive: detect → propose → confirm
+  (`AskUserQuestion`) → write + JSON-validate + dry-run the scope_map. The previously-orphaned
+  `discovery` agent gains a `Team-Config Discovery` mode as the engine (and learns that a
+  cross-plugin agent's invoke name comes from its `plugin.json` `name`, not the directory).
+
+### Changed
+- **`backend` scope renamed to `backend-kotlin`** (disambiguates from `go`, now that both are
+  JVM-adjacent). Updated in `team.config.example.json`, schema, and the README example. **Breaking
+  for any project config that hard-codes `scope: "backend"`** — rename it to `backend-kotlin`.
+- **`scope` / `zone` enums loosened to free strings** in `team.config.schema.json` and
+  `artifacts-schema.json`. They previously hard-listed `[backend, frontend, mobile, devops]` —
+  which (a) never included `go` and (b) would have rejected the custom scopes `/init-team`
+  generates (`rust`, `python`, …). Scope names are now project-defined.
+- **`scope_map` precedence documented as first-match-wins** (README + a `_scope_map_order` note in
+  the example). `mobile` is ordered above `backend-kotlin` so a KMP `commonMain/*.kt` routes to
+  mobile, not the JVM backend; `**/*.kt` reaches `backend-kotlin` only outside mobile source sets.
+
+### Tests
+- `tests/test-hooks.sh`: 88 → 120 assertions (safety-guard block/allow matrix, skill-suggest
+  fire/silence, verdict-gate normalization, Go scope wiring, `/init-team` + discovery mode,
+  backend-kotlin rename + mobile-before-backend precedence invariant).
+
 ## 2.2.0 — Stack-aware frontend-developer
 
 Generalizes the `frontend-developer` agent from a hardcoded React/TS Mini App role into a single
