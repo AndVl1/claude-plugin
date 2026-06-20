@@ -115,9 +115,11 @@ omit the `dod`/`dod_complete` stages.
 
 ## Scope flags (used by `conditional` and `${scope.*}`)
 
-Resolved from touched/planned files against `.claude/team.config.json` `scope_map`
-(a dedicated `/team-scope` command will generate this per project — P3). Until then the
-interpreter infers scope from file globs using built-in defaults:
+Resolved from touched/planned files against `.claude/team.config.json` `scope_map`. Run
+**`/init-team`** to generate that file for your project — it detects the stacks and maps each to
+the best available agent, including agents from other installed plugins (e.g. `rust-agents` for a
+Rust repo). This is the former P3. Without a config, the interpreter falls back to inferring
+scope from file globs using the built-in defaults below:
 
 | flag | true when |
 |------|-----------|

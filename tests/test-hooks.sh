@@ -674,6 +674,33 @@ jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$C
   && log_pass "review_fixes no longer uses undefined \${issue.zone.dev_agent}" \
   || log_fail "review_fixes role" "still references issue.zone.dev_agent"
 
+echo ""
+echo "=== /init-team command (P3 — project agent config) ==="
+IT="$REPO_ROOT/commands/init-team.md"
+if [ -f "$IT" ]; then
+  grep -q '.claude/team.config.json' "$IT" \
+    && log_pass "init-team writes .claude/team.config.json" \
+    || log_fail "init-team output target" "no .claude/team.config.json reference"
+  grep -q 'plugins' "$IT" && grep -qi 'cross-plugin\|other installed plugins\|~/.claude/plugins' "$IT" \
+    && log_pass "init-team does cross-plugin agent discovery" \
+    || log_fail "init-team cross-plugin scan" "missing"
+  grep -qi 'not the directory name\|plugin.json' "$IT" \
+    && log_pass "init-team resolves invoke_name from plugin.json name (not dir)" \
+    || log_fail "init-team namespace rule" "missing plugin.json-name caveat"
+  grep -qi 'dry-run' "$IT" \
+    && log_pass "init-team dry-runs the scope_map before finishing" \
+    || log_fail "init-team dry-run" "missing"
+  grep -qi 'AskUserQuestion\|confirm' "$IT" \
+    && log_pass "init-team confirms mapping interactively" \
+    || log_fail "init-team confirmation" "missing"
+else
+  log_fail "commands/init-team.md present" "$IT missing"
+fi
+# the orphaned discovery agent now has a consumer (bug #5)
+grep -qi 'Team-Config Discovery' "$REPO_ROOT/agents/discovery.md" \
+  && log_pass "discovery agent has a Team-Config mode (no longer orphaned)" \
+  || log_fail "discovery Team-Config mode" "missing"
+
 # ── summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════════"

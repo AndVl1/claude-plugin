@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.4.0 — Normalized review verdicts + fail-closed safety hooks
+## 2.4.0 — Review verdicts + safety hooks + /init-team project config
 
 Borrows three patterns from the xpowers/superpowers plugin (deterministic verdicts, fail-closed
 guards, soft skill auto-activation) and fixes latent wiring bugs found while auditing this plugin
@@ -31,10 +31,18 @@ against it. See `vibe-report/xpowers-analysis-2026-06-20.md` for the comparison.
 - **`hooks/skill-suggest.sh` (P-5)**: soft UserPromptSubmit auto-activation. On a plain request
   it surfaces the matching workflow + domain skills, but only when it sees BOTH an intent verb
   AND a concrete stack keyword — silent on chit-chat and on `/team` (team-nudge owns that).
+- **`/init-team` command (former P3)**: detects the project's stacks and generates
+  `.claude/team.config.json`, mapping each scope to the best available agent — **including agents
+  from other installed plugins** (e.g. `rust-agents` for a Rust repo). Fixes the misrouting where
+  an unmapped stack (`**/*.rs` with no `scope_map` entry) left `${scope.dev_agent}` unresolved and
+  the orchestrator grabbed the nearest dev agent. Interactive: detect → propose → confirm
+  (`AskUserQuestion`) → write + JSON-validate + dry-run the scope_map. The previously-orphaned
+  `discovery` agent gains a `Team-Config Discovery` mode as the engine (and learns that a
+  cross-plugin agent's invoke name comes from its `plugin.json` `name`, not the directory).
 
 ### Tests
-- `tests/test-hooks.sh`: 88 → 112 assertions (safety-guard block/allow matrix, skill-suggest
-  fire/silence, verdict-gate normalization, Go scope wiring).
+- `tests/test-hooks.sh`: 88 → 118 assertions (safety-guard block/allow matrix, skill-suggest
+  fire/silence, verdict-gate normalization, Go scope wiring, `/init-team` + discovery mode).
 
 ## 2.2.0 — Stack-aware frontend-developer
 
