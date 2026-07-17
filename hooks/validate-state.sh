@@ -16,8 +16,16 @@
 
 set -u
 
-STATE="${TEAM_STATE_JSON:-.work-state/team-state.json}"
-STATE_MD="${TEAM_STATE_MD:-.work-state/team-state.md}"
+# Active state: per-feature subdir (when .work-state/.active-feature is set) or legacy
+# .work-state/ root. Helper at hooks/resolve-state-path.sh emits the state FILE path;
+# STATE_MD is derived from dirname(STATE) so the markdown mirror stays co-located.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_STATE="$(bash "$SCRIPT_DIR/resolve-state-path.sh")"
+DEFAULT_STATE="${DEFAULT_STATE:-.work-state/team-state.json}"
+
+STATE="${TEAM_STATE_JSON:-$DEFAULT_STATE}"
+STATE_DIR="$(dirname "$STATE")"
+STATE_MD="${TEAM_STATE_MD:-$STATE_DIR/team-state.md}"
 
 # No JSON state. If a markdown state exists, the run is on the legacy flow and the
 # determinism/DoD gates are DORMANT (they key off team-state.json) — nudge to migrate.

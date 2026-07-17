@@ -450,11 +450,76 @@ encoded as profiles in `workflows/*.json` — nothing to read here for those.
 
 > **Backward compatibility**: In earlier versions, state files were stored in `.claude/`. If you find `team-state.md` in `.claude/` from a previous session, continue working with it there — but for **new sessions always create state in `.work-state/`**. Hooks automatically check both locations, preferring `.work-state/`.
 
+### Work-state directory layout (P-coord)
+
+The plugin uses a layered `.work-state/` layout. Per-feature subdirs let parallel tasks
+(manual-qa + dev on different branches, etc.) keep their state isolated without overwriting
+each other — each feature owns its `state.json`, `artifacts/`, and a single `.active-feature`
+pointer points at the one the orchestrator is currently driving.
+
+```
+.work-state/
+├── .active-feature                  # file: contains the slug of the current task
+├── coordinator/                     # coordinator + yolo memory (one subdir per PROJECT)
+│   └── <project-slug>/
+│       ├── vision.md                # long-lived: goals / anti-scope / "done" criterion
+│       ├── backlog.md               # rolling list of candidates for the next pulse
+│       ├── decisions.md             # ADR-lite: user decisions with "why"
+│       ├── pulse-log.md             # one entry per pulse — survives compaction
+│       ├── yolo-log.md              # only when /team-yolo runs
+│       ├── profile-usage.jsonl      # append-activation log for profile stats
+│       └── profile-stats.md         # rolled-up counts + uncovered-pattern proposals
+├── features/                        # per-task state (one subdir per FEATURE)
+│   └── <feature-slug>/
+│       ├── state.json               # replaces top-level team-state.json for this task
+│       ├── team-state.md            # human-readable mirror (legacy hooks still need it)
+│       └── artifacts/               # typed handoff contracts (same schema, per-feature)
+│           ├── discovery.json
+│           ├── exploration.json
+│           ├── dod.json             # DoD — per-feature; dod-gate.sh reads THIS one
+│           └── …
+├── .dod-override                    # project-wide escape hatch (rare; remove after use)
+├── .manual-qa-active                # MCP chrome/mobile allowlist marker (project-wide)
+├── sessions.log                     # global: one line per Stop
+└── changes.log                      # global: one line per Write/Edit
+```
+
+**Slug rules** (project-defined, but stable):
+- `project-slug` = `basename "$(git rev-parse --show-toplevel)"` (e.g. `claude-plugin`,
+  `my-app`). Coordinator/ files are project-level, not per-branch.
+- `feature-slug` = a stable task identifier. The orchestrator derives it from the git
+  branch (`feat/oauth-google` → `feat-oauth-google`) OR from `classification.task`
+  slugified. Pick once per task and keep it stable across the whole run — multiple
+  sessions resuming the same branch must hit the same subdir.
+
+**Resolution order** (live in `hooks/resolve-state-path.sh`, the single source of truth
+that hooks call):
+1. `.work-state/.active-feature` → match a `<feature-slug>/state.json` → use that feature dir.
+2. Else legacy `.work-state/team-state.json` → use `.work-state/` as the base.
+3. Else empty → hook degrades gracefully (exit 0). The legacy markdown-only flow / no-state
+   behaviour is unchanged for users on the old layout.
+
+**What the orchestrator does at Step A** (new convention, additive):
+1. Compute `feature-slug` (see slug rules above).
+2. `mkdir -p .work-state/features/<slug>`.
+3. `printf '%s\n' "<slug>" > .work-state/.active-feature` — pointer for hooks.
+4. Write `state.json`, `team-state.md`, and `artifacts/` inside that subdir.
+5. At task end: clear `.active-feature` (or leave it pointing at the most recently
+   active feature — most tasks end in `pause.kind=done` and the file is harmless).
+
+**Backward compatibility**: nothing about the legacy single-state layout
+(`.work-state/team-state.json` at the root) has been removed. If `.active-feature` is
+absent or points at a missing subdir, the hooks transparently fall back to
+`.work-state/team-state.json`. v2.4.x projects keep working unchanged.
+
 ### Machine state (source of truth — P4)
 
-The interpreter's source of truth is `.work-state/team-state.json`. **Create it during
-Step A (after classification, before launching any agent)** — the P5 gate
-(`hooks/validate-state.sh`) requires it. Shape:
+The interpreter's source of truth is `state.json`, located either in the **active feature
+subdir** (`.work-state/features/<slug>/state.json` — preferred for tasks that may run in
+parallel with others) or at the legacy **root** (`.work-state/team-state.json` — single-task
+projects). Hooks auto-resolve via `hooks/resolve-state-path.sh`; see **Work-state directory
+layout** above. **Create it during Step A (after classification, before launching any agent)**
+— the P5 gate (`hooks/validate-state.sh`) requires it. Shape:
 
 ```json
 {

@@ -19,6 +19,12 @@ mechanically. Same classification → same stage sequence.
 | `<name>.json` | One profile per workflow. |
 | `stages/<id>.md` | Per-stage prompt templates / criteria, **loaded on demand** by the interpreter (P9). The file name equals the stage `id`. Keeps `commands/team.md` lean — it holds only governance; the "how" of each stage is read only when that stage runs. |
 
+> **Work-state paths.** The hooks read state from per-feature subdirs
+> (`.work-state/features/<slug>/state.json` — see `commands/team.md` § Work-state directory
+> layout) when `.work-state/.active-feature` is set, falling back to the legacy
+> `.work-state/team-state.json` for projects on the older single-state layout. Same schema,
+> same gates — just two physical locations.
+
 ## Stage taxonomy (`stage.type`)
 
 Borrowed from harnest. Every stage is exactly one of:

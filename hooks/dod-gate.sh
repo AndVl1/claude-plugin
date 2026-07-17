@@ -21,8 +21,17 @@
 
 set -u
 
-STATE="${TEAM_STATE_JSON:-.work-state/team-state.json}"
-DOD="${DOD_JSON:-.work-state/artifacts/dod.json}"
+# Active state: per-feature subdir (when .work-state/.active-feature is set) or legacy
+# .work-state/ root. Helper at hooks/resolve-state-path.sh emits the state FILE path
+# (handles both `state.json` per-feature and `team-state.json` legacy names); DOD is
+# derived from dirname(STATE) so artifacts stay co-located with state.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_STATE="$(bash "$SCRIPT_DIR/resolve-state-path.sh")"
+DEFAULT_STATE="${DEFAULT_STATE:-.work-state/team-state.json}"   # graceful: legacy default
+
+STATE="${TEAM_STATE_JSON:-$DEFAULT_STATE}"
+STATE_DIR="$(dirname "$STATE")"
+DOD="${DOD_JSON:-$STATE_DIR/artifacts/dod.json}"
 OVERRIDE="${OVERRIDE_FILE:-.work-state/.dod-override}"
 
 # No machine state → markdown-only/legacy flow; the legacy Stop hook handles it. Allow.

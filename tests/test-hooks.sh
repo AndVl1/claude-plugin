@@ -105,6 +105,120 @@ else
 fi
 
 echo ""
+echo "=== resolve-state-path.sh (work-state layout resolver) ==="
+RESOLVE="$(dirname "$HOOKS_FILE")/resolve-state-path.sh"
+
+# 1) No work-state at all → empty output (graceful).
+sb=$(mktemp -d)
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ -z "$out" ]; then
+  log_pass "resolve-state-path: no work-state → empty"
+else
+  log_fail "resolve-state-path: no work-state → empty" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 2) Legacy single-state → resolves to legacy team-state.json file path.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"; printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: legacy team-state.json → legacy file"
+else
+  log_fail "resolve-state-path: legacy team-state.json → legacy file" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 3) Active feature with matching subdir → resolves to that feature's state.json.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-login-fix"
+printf '{"schema":1}\n' > "$sb/.work-state/features/feat-login-fix/state.json"
+printf 'feat-login-fix\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/features/feat-login-fix/state.json" ]; then
+  log_pass "resolve-state-path: active-feature + matching state → feature file"
+else
+  log_fail "resolve-state-path: active-feature + matching state → feature file" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 4) Active feature set but pointing at missing subdir → falls back to legacy if present.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf 'feat-ghost\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: active-feature → missing subdir falls back to legacy"
+else
+  log_fail "resolve-state-path: active-feature → missing subdir falls back to legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 5) Active feature + legacy both present → feature wins (new convention preferred).
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-a"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf '{"schema":1}\n' > "$sb/.work-state/features/feat-a/state.json"
+printf 'feat-a\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/features/feat-a/state.json" ]; then
+  log_pass "resolve-state-path: feature takes precedence over legacy"
+else
+  log_fail "resolve-state-path: feature takes precedence over legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 6) Whitespace-only .active-feature → empty slug, ignored.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf '   \n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: whitespace-only active-feature → legacy"
+else
+  log_fail "resolve-state-path: whitespace-only active-feature → legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 7) Active feature file is itself valid in WORK_STATE_DIR sandbox.
+sb=$(mktemp -d)
+out=$(cd "$sb" && WORK_STATE_DIR=.work-state bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ -z "$out" ]; then
+  log_pass "resolve-state-path: WORK_STATE_DIR override honored"
+else
+  log_fail "resolve-state-path: WORK_STATE_DIR override honored" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 8) dod-gate reads via helper: missing state → graceful exit 0 (legacy allow).
+sb=$(mktemp -d)
+DOD_HOOK="$(dirname "$HOOKS_FILE")/dod-gate.sh"
+out=$(cd "$sb" && bash "$DOD_HOOK" 2>&1); ec=$?
+if [ "$ec" = "0" ]; then
+  log_pass "dod-gate: missing state → graceful exit 0 (helper)"
+else
+  log_fail "dod-gate: missing state → graceful exit 0 (helper)" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 9) dod-gate end-to-end: per-feature state file in WORK_STATE_DIR sandbox, done-claim,
+#    no DoD artifact under that feature → blocks. Proves per-feature layout is wired.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-end-to-end"
+if (cd "$sb" && git init -q -b test-branch 2>/dev/null); then
+  BR=$(cd "$sb" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  cat > "$sb/.work-state/features/feat-end-to-end/state.json" <<EOF
+{"schema":1,"branch":"$BR","classification":{"type":"FEATURE","workflow":"standard"},"pause":{"kind":"done"},"stage_cursor":"summary"}
+EOF
+  printf 'feat-end-to-end\n' > "$sb/.work-state/.active-feature"
+  out=$(cd "$sb" && WORK_STATE_DIR=.work-state bash "$DOD_HOOK" 2>&1); ec=$?
+  if [ "$ec" = "2" ] && echo "$out" | grep -q "BLOCK (DoD)"; then
+    log_pass "dod-gate: per-feature done-claim without DoD → BLOCK (end-to-end)"
+  else
+    log_fail "dod-gate: per-feature done-claim without DoD → BLOCK (end-to-end)" "ec=$ec out='$out'"
+  fi
+else
+  log_pass "dod-gate: skipped end-to-end (no git in sandbox)"
+fi
+rm -rf "$sb"
+
+echo ""
 echo "=== SessionStart ==="
 cmd=$(get_cmd_idx SessionStart 0)
 out=$(bash -c "$cmd"); ec=$?

@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.4.1 — Work-state per-feature subdirs + coordinator/ memory + identity rename
+
+Hoists the orchestrator's per-task state out of `.work-state/`'s root into per-feature
+subdirs so parallel tasks (manual-qa on branch A while the implementer runs branch B)
+don't trample each other's state and artifacts. Also fixes a three-identifier identity
+drift on the Kotlin developer agent.
+
+### Added
+- **Per-feature work-state subdirs** (`.work-state/features/<slug>/{state.json,
+  team-state.md, artifacts/}`). The orchestrator writes the current task's slug into
+  `.work-state/.active-feature` at Step A; the gate hooks resolve state from there,
+  falling back to the legacy `.work-state/team-state.json` for projects on the older
+  single-state layout. Two layouts, same gates — existing v2.4.x projects keep working
+  unchanged. See `commands/team.md` § Work-state directory layout for the full map.
+- **`hooks/resolve-state-path.sh`** — single source of truth for the active state file
+  path. `dod-gate.sh` and `validate-state.sh` both call it (instead of hard-coding
+  `.work-state/team-state.json`) so any future layout change is one edit, not two. Test
+  override: `WORK_STATE_DIR` env var.
+- **`coordinator/` memory directory convention** at `.work-state/coordinator/<project-slug>/`
+  for vision / backlog / decisions / pulse-log / yolo-log / profile-usage.jsonl /
+  profile-stats.md — the home of the future read-only coordinator and autonomous yolo
+  executor (PR-4 in the audit report). Project-slug = `basename "$(git rev-parse
+  --show-toplevel)"`. Not implemented yet, just reserved.
+
+### Changed
+- **`developer-backend` → `developer-kotlin` identity** across 4 files (frontmatter,
+  `workflows/team.config.example.json` × 2, `workflows/README.md`, `README.md`). The
+  Kotlin file is canonical; the older `developer-backend` string was residue from
+  before the Go split in 2.3.0 and the `backend-kotlin` scope rename. `/init-team` and
+  the interpreter resolve by `subagent_type` string, so callers using the bare name in
+  a project's `team.config.json` must rename `developer-backend` → `developer-kotlin`.
+  No behavioural change: same agent, same skills, same model. Same goes for `team.md`
+  (already used `developer-kotlin`).
+- **`hooks/dod-gate.sh` / `hooks/validate-state.sh`** now derive STATE and DOD paths
+  via the helper instead of hard-coding `.work-state/team-state.json` and
+  `.work-state/artifacts/dod.json`. State and DOD stay co-located (under the same base
+  dir) for both layouts.
+
+### Tests
+- `tests/test-hooks.sh`: 120 → 129 assertions (+9). New: resolve-state-path empty /
+  legacy / active-feature match / active-feature missing-subdir-fallback / feature
+  precedence / whitespace-only slug / WORK_STATE_DIR override + dod-gate end-to-end
+  through per-feature layout (synthetic done-claim in a per-feature state.json without
+  a DoD artifact → blocks, proving the helper is wired into the hook, not just
+  isolated).
+
 ## 2.4.0 — Review verdicts + safety hooks + /init-team project config
 
 Borrows three patterns from the xpowers/superpowers plugin (deterministic verdicts, fail-closed
