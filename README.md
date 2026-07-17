@@ -58,7 +58,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | `analyst` | Requirements analyst - clarifies requirements, researches patterns |
 | `architect` | Technical architect - designs APIs, data models, implementation plans |
 | `code-reviewer` | Code quality reviewer - security, patterns, best practices |
-| `developer-backend` | Backend developer - Kotlin/Spring services, JOOQ, bots |
+| `developer-kotlin` | Backend developer - Kotlin/Spring services, JOOQ, bots |
 | `developer-mobile` | Mobile developer - KMP with Compose UI |
 | `devops` | DevOps engineer - Docker, K8s, Helm, CI/CD |
 | `diagnostics` | Bug investigator - 5-phase diagnostic workflow, root-cause analysis |

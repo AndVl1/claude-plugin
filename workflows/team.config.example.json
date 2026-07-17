@@ -8,7 +8,7 @@
     "tech-researcher": "tech-researcher",
     "diagnostics": "diagnostics",
     "architect": "architect",
-    "backend-kotlin": "developer-backend",
+    "backend-kotlin": "developer-kotlin",
     "go": "developer-go",
     "frontend": "frontend-developer",
     "mobile": "developer-mobile",
@@ -39,7 +39,7 @@
     { "glob": ["**/*.tsx", "**/*.jsx", "**/*.vue", "**/*.ts", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
     { "glob": ["**/*.go", "**/go.mod", "**/go.sum"], "scope": "go", "dev_agent": "developer-go" },
     { "glob": ["**/Dockerfile", "**/*.yaml", "**/*.yml", "**/helm/**", "**/.github/**", "**/k8s/**"], "scope": "devops", "dev_agent": "devops" },
-    { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend-kotlin", "dev_agent": "developer-backend" }
+    { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend-kotlin", "dev_agent": "developer-kotlin" }
   ],
 
   "flags": {
