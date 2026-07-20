@@ -503,6 +503,16 @@ The plugin uses a layered `.work-state/` layout. Per-feature subdirs let paralle
 each other — each feature owns its `state.json`, `artifacts/`, and a single `.active-feature`
 pointer points at the one the orchestrator is currently driving.
 
+**Companion coordinator commands** (operate over the `coordinator/<project-slug>/` memory above):
+- **`/pulse`** — read-only `coordinator` agent: digest of state/queue/git/vision + a next-action
+  menu. Appends to `pulse-log.md`; mutates nothing else.
+- **`/team-yolo`** — autonomous `coordinator-yolo` executor: pick→`/team`→verify→atomic-commit on a
+  `yolo/*` branch, rollback on red, log to `yolo-log.md`. Stop with the `coordinator-yolo-stop`
+  skill. Explicit opt-in; never pushes/merges; DoD still enforced.
+- **`/coordinator-stats`** — roll up `profile-usage.jsonl` (written by the `profile-usage`
+  PostToolUse hook) into `profile-stats.md` and propose new profiles for recurring shapes.
+- **`vision-bootstrap`** skill — derive `vision.md` once from project context.
+
 ```
 .work-state/
 ├── .active-feature                  # file: contains the slug of the current task

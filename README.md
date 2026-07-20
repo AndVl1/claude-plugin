@@ -74,6 +74,10 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 > Workflows can also use **custom agents** — project (`.claude/agents/`), user
 > (`~/.claude/agents/`), or another plugin (`<plugin>:<agent>`) — via `.claude/team.config.json`.
 
+> **Coordinator agents** (orchestration, not part of the 15-agent dev team): `coordinator`
+> (read-only pulse) and `coordinator-yolo` (autonomous executor). Used by `/pulse` and
+> `/team-yolo`.
+
 ### Commands (User-invokable Skills)
 | Command | Description |
 |---------|-------------|
@@ -82,6 +86,9 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | `/fullstack-team:team-next` | Execute one autonomous iteration from the task queue |
 | `/fullstack-team:queue-sync` | Pull GitHub issues into the local task queue cache |
 | `/fullstack-team:queue-analyze` | Batch-clarify needs-human tasks in the queue |
+| `/fullstack-team:pulse` | Read-only project pulse — digest + next-action menu (coordinator) |
+| `/fullstack-team:team-yolo` | Autonomous yolo loop — pick/run/verify/commit, rollback on red |
+| `/fullstack-team:coordinator-stats` | Profile-usage rollup + new-profile proposals |
 | `/fullstack-team:interview` | Deep interview to clarify ideas before implementation |
 | `/fullstack-team:init-mobile` | Create KMP Compose Multiplatform project |
 | `/fullstack-team:update-readme` | Update project README |

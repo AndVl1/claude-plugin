@@ -994,6 +994,62 @@ grep -qE '^skills:.*\bkmp\b' "$REPO_ROOT/agents/frontend-developer.md" \
   || log_pass "frontend-developer no longer lists kmp skill"
 
 echo ""
+echo "=== coordinator + yolo loop (PR-4) ==="
+PU="$REPO_ROOT/hooks/profile-usage.sh"
+# hook exists and is valid bash
+if [ -f "$PU" ] && bash -n "$PU" 2>/dev/null; then
+  log_pass "hooks/profile-usage.sh present + valid"
+else
+  log_fail "hooks/profile-usage.sh" "missing or syntax error"
+fi
+# appends a JSONL activation line when state is present
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation"}' > "$sb/.work-state/team-state.json"
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1; ec=$?
+JL="$sb/.work-state/coordinator/demo/profile-usage.jsonl"
+if [ "$ec" = "0" ] && [ -f "$JL" ] && jq -e '.workflow == "full-feature" and .type == "FEATURE" and .stage == "implementation"' "$JL" >/dev/null 2>&1; then
+  log_pass "profile-usage appends a valid activation JSONL line"
+else
+  log_fail "profile-usage jsonl" "ec=$ec content=$(cat "$JL" 2>/dev/null)"
+fi
+# second launch appends (not overwrites)
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1
+[ "$(wc -l < "$JL" | tr -d ' ')" = "2" ] \
+  && log_pass "profile-usage is append-only (2 launches → 2 lines)" \
+  || log_fail "profile-usage append" "expected 2 lines, got $(wc -l < "$JL")"
+rm -rf "$sb"
+# no state → no-op, no file created
+sb=$(mktemp -d)
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ ! -f "$sb/.work-state/coordinator/demo/profile-usage.jsonl" ]; then
+  log_pass "profile-usage no state → silent no-op"
+else
+  log_fail "profile-usage no state" "ec=$ec created a file unexpectedly"
+fi
+rm -rf "$sb"
+# wired into hooks.json as a PostToolUse Task hook
+jq -e '[.hooks.PostToolUse[] | select(.matcher == "Task") | .hooks[0].command] | map(select(test("profile-usage.sh"))) | length >= 1' "$HOOKS_FILE" >/dev/null \
+  && log_pass "profile-usage wired as PostToolUse Task hook" \
+  || log_fail "profile-usage wiring" "not in hooks.json PostToolUse"
+
+# new coordinator components exist
+for f in commands/pulse.md commands/team-yolo.md commands/coordinator-stats.md \
+         agents/coordinator.md agents/coordinator-yolo.md \
+         skills/coordinator/SKILL.md skills/coordinator-yolo/SKILL.md \
+         skills/coordinator-yolo-stop/SKILL.md skills/coordinator-stats/SKILL.md \
+         skills/vision-bootstrap/SKILL.md; do
+  [ -f "$REPO_ROOT/$f" ] && log_pass "PR-4 component present: $f" || log_fail "PR-4 component: $f" "missing"
+done
+# coordinator agent is read-only (no Write/Edit in its tools)
+grep -qE '^tools:.*(Write|Edit)' "$REPO_ROOT/agents/coordinator.md" \
+  && log_fail "coordinator agent read-only" "has Write/Edit in tools" \
+  || log_pass "coordinator agent is read-only (no Write/Edit)"
+# diagnostics two-tier gate documents bilingual approval triggers
+grep -qi "исправь" "$REPO_ROOT/agents/diagnostics.md" && grep -qi "go ahead" "$REPO_ROOT/agents/diagnostics.md" \
+  && log_pass "diagnostics two-tier gate has bilingual approval triggers" \
+  || log_fail "diagnostics approval triggers" "missing bilingual set"
+
+echo ""
 echo "=== Go scope wiring (bug #2) ==="
 CFG="$REPO_ROOT/workflows/team.config.example.json"
 jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \

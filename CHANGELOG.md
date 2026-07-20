@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.1.0 — Coordinator + autonomous yolo loop
+
+Adds a strategic layer over `/team`: a read-only coordinator that takes the project's pulse, an
+autonomous yolo executor for unattended runs, and closed-loop profile telemetry. All of it lives
+on the `.work-state/coordinator/<project-slug>/` memory reserved in 2.4.1.
+
+### Added
+- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
+  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
+  rollup + new-profile proposals).
+- **Agents**: `coordinator` (opus, read-only, green — never mutates) and `coordinator-yolo`
+  (opus, autonomous executor, red — dedicated `yolo/*` branch, atomic commits, hard safety rails,
+  never pushes/merges, DoD still enforced).
+- **Skills**: `coordinator` (pulse), `coordinator-yolo` (start+tick), `coordinator-yolo-stop`
+  (halt+report — deliberately a separate first-class skill), `coordinator-stats`,
+  `vision-bootstrap` (derive `vision.md` once from project context).
+- **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL line per agent launch to
+  `coordinator/<slug>/profile-usage.jsonl` (`{ts, workflow, type, complexity, stage, branch}`).
+  Best-effort, never blocks. Wired into `hooks.json`.
+
+### Changed
+- **`agents/diagnostics.md`** two-tier permission gate expanded: Tier 1 (diagnostic: read/build/
+  logs/grep) auto-permitted; Tier 2 (any mutation) is a hard stop requiring an explicit go-ahead,
+  with a bilingual + semantic approval-trigger list. Ambiguity/silence never counts as approval.
+- `commands/team.md` and `README.md` cross-reference the new coordinator commands; `plugin.json`
+  bumped to 3.1.0.
+
 ## 3.0.2 — Housekeeping & doc sync
 
 ### Changed

@@ -41,7 +41,22 @@ Identify root causes of bugs and errors across the entire stack WITHOUT making c
 - Database modifications
 - Any irreversible operations
 
-**Approval triggers**: "ok", "yes", "fix", "apply", "давай", "исправь", "примени"
+### Two-tier gate (hard stop before mutation)
+
+This is a **hard boundary**, not a soft preference. Tier 1 (diagnostic: read, build, run tests,
+read logs, grep, temporary revertible debug logging) is **auto-permitted** — proceed without
+asking. Tier 2 (**any** modification of code/config/data) requires an explicit go-ahead from the
+user in the same turn. When you reach a fix, STOP, state the proposed change + why it closes the
+root cause, and wait.
+
+**Approval triggers** (any of these, case-insensitive, unblocks the specific proposed change):
+- English: `ok`, `okay`, `yes`, `y`, `fix`, `apply`, `do it`, `go`, `go ahead`, `proceed`, `done`, `sure`
+- Russian: `ок`, `окей`, `да`, `ага`, `исправь`, `примени`, `фиксируй`, `делай`, `давай`, `готово`, `го`
+- Semantic: any short affirmative that clearly means "yes, make that change" (e.g. "окей го",
+  "let's do it", "ship it"). If the reply is ambiguous ("maybe", "hmm", a new question), treat it
+  as **not approved** and ask again — never infer approval from silence or from an unrelated message.
+
+One approval covers only the change you described. A new mutation needs a new go-ahead.
 
 ---
 
