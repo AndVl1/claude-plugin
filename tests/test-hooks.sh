@@ -957,6 +957,43 @@ grep -q "Multi-source fan-in" "$REPO_ROOT/commands/team.md" \
   || log_fail "team.md fan-in section" "missing"
 
 echo ""
+echo "=== housekeeping / architect variants (PR-5) ==="
+# architect consilium: named variants, count <= 3 (design choice C: 1 MEDIUM / 3 COMPLEX)
+acount=$(jq -r '[.stages[] | select(.id=="architecture") | .roles // [.role]] | flatten | map(select(startswith("architect"))) | length' "$FF")
+[ "$acount" -le 3 ] && [ "$acount" -ge 1 ] \
+  && log_pass "full-feature architecture uses 1..3 architects ($acount)" \
+  || log_fail "full-feature architect count" "got $acount (expected 1..3)"
+jq -e '[.stages[] | select(.id=="architecture") | .roles[]] | (index("architect_minimal") and index("architect_clean") and index("architect_pragmatic"))' "$FF" >/dev/null \
+  && log_pass "full-feature architects are named variants (minimal/clean/pragmatic)" \
+  || log_fail "architect named variants" "not using named variant roles"
+# no repeated bare 'architect' triple left anywhere
+badarch=0
+for p in "$REPO_ROOT"/workflows/{full-feature,standard,lightweight,bug-fix,debug-cycle}.json; do
+  if jq -e '.stages[] | select(.id=="architecture") | (.roles // []) | map(select(. == "architect")) | length > 1' "$p" >/dev/null 2>&1; then
+    log_fail "no duplicated bare architect role in $(basename "$p")" "found repeated \"architect\""; badarch=$((badarch+1))
+  fi
+done
+[ "$badarch" = "0" ] && log_pass "no profile repeats the bare 'architect' role (named variants instead)"
+# team.config maps the variant roles → architect agent
+jq -e '.roles | (.architect_minimal == "architect" and .architect_clean == "architect" and .architect_pragmatic == "architect")' "$REPO_ROOT/workflows/team.config.example.json" >/dev/null \
+  && log_pass "team.config maps architect_* variants → architect agent" \
+  || log_fail "architect variant roles map" "missing in team.config.example.json"
+# doc drift fixed
+grep -q "15-agent" "$REPO_ROOT/commands/team.md" \
+  && log_pass "team.md says 15-agent (drift fixed)" \
+  || log_fail "team.md agent count" "still 13-agent"
+grep -q "15 Specialized Agents" "$REPO_ROOT/README.md" \
+  && log_pass "README says 15 Specialized Agents" \
+  || log_fail "README agent count" "not 15"
+grep -q "developer-go" "$REPO_ROOT/README.md" \
+  && log_pass "README lists developer-go" \
+  || log_fail "README developer-go row" "missing"
+# frontend-developer no longer claims the kmp skill
+grep -qE '^skills:.*\bkmp\b' "$REPO_ROOT/agents/frontend-developer.md" \
+  && log_fail "frontend-developer kmp skill removed" "still lists kmp" \
+  || log_pass "frontend-developer no longer lists kmp skill"
+
+echo ""
 echo "=== Go scope wiring (bug #2) ==="
 CFG="$REPO_ROOT/workflows/team.config.example.json"
 jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \

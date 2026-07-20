@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.0.2 — Housekeeping & doc sync
+
+### Changed
+- **Architect consilium uses named variants** (design choice C: 1 architect for MEDIUM /
+  `standard`, 3 for COMPLEX / `full-feature`). `full-feature` architecture roles are now
+  `architect_minimal` / `architect_clean` / `architect_pragmatic` (was three bare `"architect"`),
+  each resolving to the `architect` agent via the `roles` map but carrying a distinct
+  prompt/focus documented in `workflows/stages/architecture.md`.
+- **Doc drift fixed**: `commands/team.md` "13-agent" → "15-agent" and the stage-loop gate example
+  `confidence>=80` → `verdict != reject`; `README.md` "14 Specialized Agents" → "15", added the
+  `developer-go` row, "14 agent definitions" → "15", and the commands table now lists
+  `init-team`, `team-next`, `queue-sync`, `queue-analyze`.
+- `agents/frontend-developer.md` dropped the `kmp` skill (Compose/KMP is the mobile dev's zone).
+- `agents/discovery.md` description now mentions its Team-Config mode for `/init-team`.
+
+### Notes
+- **`team-state.json` schema-migration policy**: there is no automatic migrator. The state file
+  is session-ephemeral (`.work-state/` is git-ignored), so the forward path on a schema change is
+  simply to let the next `/team` run rewrite it; the gate hooks degrade gracefully (missing/legacy
+  fields → allow) rather than hard-failing on an old shape. A dedicated migrator would only be
+  warranted if state ever became durable/shared.
+
 ## 3.0.1 — Multi-source Definition of Done fan-in
 
 The DoD is no longer single-source. It is still seeded by exploration/discovery/diagnose, but

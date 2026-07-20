@@ -1,6 +1,6 @@
 # Dream Team Plugin for Claude Code
 
-A comprehensive fullstack development plugin with 14 specialized agents for building modern applications: Kotlin/Spring Boot backends, React web frontends, KMP mobile apps, Telegram bots, DevOps pipelines, and AI integration.
+A comprehensive fullstack development plugin with 15 specialized agents for building modern applications: Kotlin/Spring Boot backends, Go services, React web frontends, KMP mobile apps, Telegram bots, DevOps pipelines, and AI integration.
 
 `/team` runs a **deterministic, profile-driven workflow** with a Definition-of-Done gate — the same task takes the same path every run, and a task can't claim "done" without verified acceptance criteria.
 
@@ -52,13 +52,14 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 
 ## Features
 
-### 14 Specialized Agents
+### 15 Specialized Agents
 | Agent | Description |
 |-------|-------------|
 | `analyst` | Requirements analyst - clarifies requirements, researches patterns |
 | `architect` | Technical architect - designs APIs, data models, implementation plans |
 | `code-reviewer` | Code quality reviewer - security, patterns, best practices |
 | `developer-kotlin` | Backend developer - Kotlin/Spring services, JOOQ, bots |
+| `developer-go` | Go developer - CLI tools, systems, microservices, WebSocket agents |
 | `developer-mobile` | Mobile developer - KMP with Compose UI |
 | `devops` | DevOps engineer - Docker, K8s, Helm, CI/CD |
 | `diagnostics` | Bug investigator - 5-phase diagnostic workflow, root-cause analysis |
@@ -77,6 +78,10 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | Command | Description |
 |---------|-------------|
 | `/fullstack-team:team` | 7-phase feature development with parallel agents |
+| `/fullstack-team:init-team` | Detect stacks + agents, generate `.claude/team.config.json` |
+| `/fullstack-team:team-next` | Execute one autonomous iteration from the task queue |
+| `/fullstack-team:queue-sync` | Pull GitHub issues into the local task queue cache |
+| `/fullstack-team:queue-analyze` | Batch-clarify needs-human tasks in the queue |
 | `/fullstack-team:interview` | Deep interview to clarify ideas before implementation |
 | `/fullstack-team:init-mobile` | Create KMP Compose Multiplatform project |
 | `/fullstack-team:update-readme` | Update project README |
@@ -105,7 +110,7 @@ claude-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json       # Plugin manifest
 │   └── marketplace.json  # Marketplace catalog
-├── agents/               # 14 agent definitions
+├── agents/               # 15 agent definitions
 ├── commands/             # User-invokable commands
 ├── skills/               # Domain knowledge (23 skills)
 ├── workflows/            # Declarative workflow profiles (JSON) + schemas

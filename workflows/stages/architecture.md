@@ -8,29 +8,44 @@
 
 **🚫 Delegate, don't DIY.** Your first action for this stage is the Task call(s). Do NOT read code / run git / grep yourself "to give the agent context" — the agent gathers its own context. Recon-before-delegate is how the orchestrator absorbs the task and the subagent never runs.
 
-### PHASE 4: ARCHITECTURE DESIGN (Parallel)
+### PHASE 4: ARCHITECTURE DESIGN
 
-**Goal**: Design multiple approaches, let user choose
+**Architect count — conditional on complexity (design choice C):**
+
+| complexity | profile | architects |
+|-----------|---------|-----------|
+| MEDIUM | `standard` | **1** — single `architect`, proposes one design |
+| COMPLEX / CRITICAL | `full-feature` | **3** — a parallel consilium of named variants |
+
+The three variants are distinct **roles** — `architect_minimal`, `architect_clean`,
+`architect_pragmatic` — that all resolve to the same `architect` agent (see the `roles` map in
+`team.config.example.json`). They differ only by the prompt/focus below. Naming them (instead of
+repeating `"architect"` three times) makes the consilium self-documenting and lets a project
+remap or drop a variant without touching the profile's shape.
+
+**Goal**: Design multiple approaches, let user choose (COMPLEX); or propose one (MEDIUM).
 
 **Actions**:
-1. Launch **2-3 architect agents IN PARALLEL** with different focuses:
+1. Launch the architect agent(s). For `full-feature`, launch all three variants **IN PARALLEL**:
 
    ```
-   Agent 1 (architect - minimal):
+   architect_minimal:
    "Design [feature] with MINIMAL CHANGES approach.
     Focus: Smallest change, maximum reuse of existing code.
     Provide: Component design, files to modify, implementation steps."
 
-   Agent 2 (architect - clean):
+   architect_clean:
    "Design [feature] with CLEAN ARCHITECTURE approach.
     Focus: Maintainability, elegant abstractions, testability.
     Provide: Component design, files to create/modify, implementation steps."
 
-   Agent 3 (architect - pragmatic):
+   architect_pragmatic:
    "Design [feature] with PRAGMATIC BALANCE approach.
     Focus: Speed + quality balance, reasonable abstractions.
     Provide: Component design, files to modify, implementation steps."
    ```
+
+   For `standard` (MEDIUM), launch a single `architect` producing one design (no consilium).
 
 2. Review all approaches
 3. Form your recommendation based on:

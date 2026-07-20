@@ -5,7 +5,7 @@ description: Frontend developer - implements DOM-based web UIs across stacks (Re
 color: yellow
 tools: Read, Write, Edit, Glob, Grep, Bash, WebSearch, WebFetch
 permissionMode: acceptEdits
-skills: react-vite, telegram-mini-apps, kotlin-web, kmp
+skills: react-vite, telegram-mini-apps, kotlin-web
 ---
 
 # Frontend Developer
