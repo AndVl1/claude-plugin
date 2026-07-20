@@ -130,7 +130,7 @@
     },
     "manual_qa": {
       "type": "object",
-      "description": "Manual runtime-verification verdict, produced by the manual-qa agent AFTER review_fixes — it exercises the code that will actually ship, not a pre-fix snapshot. NOT UI-only: on a UI scope it drives the real UI (agent-browser for web / mobile MCP for the app; claude-in-chrome MCP as fallback); on a backend/CLI scope it runs the app, hits endpoints, and reads logs/output. Gated on scope.has_runtime (skipped only for pure docs/config work). Consumed by qa_tests (evidence → automated regression tests) and by summary. Replaces the old string field inside `debug`.",
+      "description": "Manual runtime-verification verdict, produced by the manual-qa agent AFTER review_fixes — it exercises the code that will actually ship, not a pre-fix snapshot. NOT UI-only: on a UI scope it drives the real UI (agent-browser CLI for web / claude-in-mobile CLI for the app); on a backend/CLI scope it runs the app, hits endpoints, and reads logs/output. All via CLI, no MCP. Gated on scope.has_runtime (skipped only for pure docs/config work). Consumed by qa_tests (evidence → automated regression tests) and by summary. Replaces the old string field inside `debug`.",
       "required": ["verdict", "evidence"],
       "properties": {
         "verdict": { "enum": ["PASS", "FAIL"], "description": "PASS only if every acceptance criterion was observed working at runtime. A missing/unknown verdict is treated as FAIL — it never auto-passes." },
@@ -139,7 +139,7 @@
           "items": { "type": "string" },
           "description": "Concrete observations. UI: screenshot path + WHAT IS VISIBLE on it. Backend/CLI: the command/curl run + the actual response/exit code, and the relevant log lines. A bare 'looks good' is not evidence."
         },
-        "mode": { "enum": ["ui", "runtime"], "description": "Which verification mode was used: 'ui' (agent-browser for web / mobile MCP for the app) when scope.has_ui, else 'runtime' (run/curl/logs)." },
+        "mode": { "enum": ["ui", "runtime"], "description": "Which verification mode was used: 'ui' (agent-browser CLI for web / claude-in-mobile CLI for the app) when scope.has_ui, else 'runtime' (run/curl/logs)." },
         "dod_additions": {
           "type": "array",
           "description": "UI/visual acceptance criteria manual-qa appends back to dod.json (see multi-source DoD fan-in). Each item uses the dod item shape.",

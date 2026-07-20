@@ -66,7 +66,7 @@ If you want to add this marketplace to your team's project, add to `.claude/sett
 | `discovery` | Repository discovery - analyzes codebases |
 | `frontend-developer` | Frontend developer - React/TypeScript |
 | `init-mobile` | Mobile project initializer - creates KMP projects |
-| `manual-qa` | Manual QA tester - UI testing via Chrome/Mobile MCP |
+| `manual-qa` | Manual QA / runtime verification - agent-browser + claude-in-mobile CLIs, backend run+curl+logs |
 | `qa` | QA engineer - writes tests, reviews code |
 | `security-tester` | Security specialist - vulnerability assessment |
 | `tech-researcher` | Research agent - documentation, best practices |

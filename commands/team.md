@@ -373,7 +373,7 @@ detect these, so treat this as a standing rule.
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
 | **qa** | Automated tests (encode manual_qa evidence) | sonnet | Phase 6.8 (`qa_tests`) |
-| **manual-qa** | Runtime verification on fixed code (agent-browser / mobile MCP / run+curl+logs) | sonnet | Phase 6.7 (`manual_qa`) |
+| **manual-qa** | Runtime verification on fixed code (agent-browser / claude-in-mobile / run+curl+logs; CLI, no MCP) | sonnet | Phase 6.7 (`manual_qa`) |
 | **code-reviewer** | Deep static quality review | opus | Phase 6 (`code_review`) |
 | **security-tester** | Security vulnerabilities | opus | Phase 6 (`code_review`, if has_security) |
 | **devops** | Infrastructure, deployment | sonnet | Phase 6 (`code_review`, if has_infra) |
@@ -403,13 +403,13 @@ detect these, so treat this as a standing rule.
 - Reuses shared KMP business logic: Kotlin/JS consumes `commonMain` directly; TS frontends share via the API contract
 - NOT Compose WASM (canvas) — that is developer-mobile's zone
 
-**manual-qa** (UI Testing - Web & Mobile):
-- Chrome browser automation via MCP tools (Mini App)
-- Android/iOS device automation via MCP mobile tools
-- Network request verification (web) / Logcat analysis (mobile)
+**manual-qa** (Runtime Verification - Web, Mobile & Backend):
+- Web UI automation via the `agent-browser` CLI (Mini App / web)
+- Android/iOS/Desktop automation via the `claude-in-mobile` CLI
+- Backend/CLI runtime: run the app, `curl` endpoints, read logs
+- Network request verification (web) / Logcat analysis (mobile) / log analysis (backend)
 - Console error checking / Crash detection
-- JavaScript state inspection / UI hierarchy inspection
-- Screenshot-based verification on all platforms
+- Screenshot- and log-based verification on all platforms — **all via CLI, no MCP**
 - Telegram Mini App testing
 - KMP Mobile App testing (Android emulators, iOS simulators)
 
@@ -485,7 +485,7 @@ code_review → review_fixes → manual_qa (skip_if !scope.has_runtime) → qa_t
 `code_review` is static only (no `qa`/`manual-qa`). `manual_qa` and `qa_tests` run *after* fixes
 so they exercise the shipping code. **`manual_qa` is not UI-only** — it is gated on
 `scope.has_runtime` (skipped only for pure docs/config), and `scope.has_ui` selects the *mode*:
-`ui` (drive agent-browser for web / mobile MCP for the app) when there's a UI, else `runtime` (run the app, hit endpoints, read
+`ui` (drive agent-browser for web / claude-in-mobile for the app) when there's a UI, else `runtime` (run the app, hit endpoints, read
 logs). `lightweight` runs `code_review` (single code-reviewer) → `review_fixes` → `qa_tests` (no
 manual_qa for QUICK). `review`/`emergency` keep their existing `review` stage.
 

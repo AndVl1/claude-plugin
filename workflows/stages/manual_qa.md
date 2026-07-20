@@ -16,7 +16,7 @@ The mode depends on scope:
 
 | scope | mode | how manual-qa verifies |
 |-------|------|------------------------|
-| `scope.has_ui` (frontend/mobile) | **ui** | drive the real UI via agent-browser (web) / mobile MCP (app); screenshot + console + network |
+| `scope.has_ui` (frontend/mobile) | **ui** | drive the real UI via agent-browser (web) / claude-in-mobile (app); screenshot + console + network |
 | backend / CLI / service (no UI) | **runtime** | run the app/binary, hit endpoints (`curl`), read logs/output, check exit codes |
 
 **Skip when**: `!scope.has_runtime` — i.e. there is nothing to run (pure docs/config/research
@@ -41,7 +41,7 @@ durable automated tests.
     - architecture + implementation — what changed and where
 
     Pick the mode from scope:
-    - UI (has_ui): drive the real UI (agent-browser for web / mobile MCP for the app);
+    - UI (has_ui): drive the real UI (agent-browser for web / claude-in-mobile for the app);
       screenshot each criterion and state WHAT IS VISIBLE; check console + network.
     - RUNTIME (no UI): run the app/binary; hit the affected endpoints/commands
       (curl, CLI invocation); capture the actual responses/exit codes and the
