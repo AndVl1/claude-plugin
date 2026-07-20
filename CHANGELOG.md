@@ -1,139 +1,86 @@
 # Changelog
 
-## 3.1.0 — Coordinator + autonomous yolo loop
+## 3.0.0 — Sequenced review pipeline, DoD fan-in, coordinator loop — **BREAKING**
 
-Adds a strategic layer over `/team`: a read-only coordinator that takes the project's pulse, an
-autonomous yolo executor for unattended runs, and closed-loop profile telemetry. All of it lives
-on the `.work-state/coordinator/<project-slug>/` memory reserved in 2.4.1.
+One release covering the plugin overhaul: the review pipeline is resequenced (breaking), the
+Definition of Done becomes multi-source, hook block-messaging is fixed, and a strategic
+coordinator layer (pulse + autonomous yolo loop) is added on top of `/team`.
 
-### Added
-- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
-  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
-  rollup + new-profile proposals).
-- **Agents**: `coordinator` (opus, read-only, green — never mutates) and `coordinator-yolo`
-  (opus, autonomous executor, red — dedicated `yolo/*` branch, atomic commits, hard safety rails,
-  never pushes/merges, DoD still enforced).
-- **Skills**: `coordinator` (pulse), `coordinator-yolo` (start+tick), `coordinator-yolo-stop`
-  (halt+report — deliberately a separate first-class skill), `coordinator-stats`,
-  `vision-bootstrap` (derive `vision.md` once from project context).
-- **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL line per agent launch to
-  `coordinator/<slug>/profile-usage.jsonl` (`{ts, workflow, type, complexity, stage, branch}`).
-  Best-effort, never blocks. Wired into `hooks.json`.
-
-### Changed
-- **`agents/diagnostics.md`** two-tier permission gate expanded: Tier 1 (diagnostic: read/build/
-  logs/grep) auto-permitted; Tier 2 (any mutation) is a hard stop requiring an explicit go-ahead,
-  with a bilingual + semantic approval-trigger list. Ambiguity/silence never counts as approval.
-- `commands/team.md` and `README.md` cross-reference the new coordinator commands; `plugin.json`
-  bumped to 3.1.0.
-
-## 3.0.2 — Housekeeping & doc sync
-
-### Changed
-- **Architect consilium uses named variants** (design choice C: 1 architect for MEDIUM /
-  `standard`, 3 for COMPLEX / `full-feature`). `full-feature` architecture roles are now
-  `architect_minimal` / `architect_clean` / `architect_pragmatic` (was three bare `"architect"`),
-  each resolving to the `architect` agent via the `roles` map but carrying a distinct
-  prompt/focus documented in `workflows/stages/architecture.md`.
-- **Doc drift fixed**: `commands/team.md` "13-agent" → "15-agent" and the stage-loop gate example
-  `confidence>=80` → `verdict != reject`; `README.md` "14 Specialized Agents" → "15", added the
-  `developer-go` row, "14 agent definitions" → "15", and the commands table now lists
-  `init-team`, `team-next`, `queue-sync`, `queue-analyze`.
-- `agents/frontend-developer.md` dropped the `kmp` skill (Compose/KMP is the mobile dev's zone).
-- `agents/discovery.md` description now mentions its Team-Config mode for `/init-team`.
-
-### Notes
-- **`team-state.json` schema-migration policy**: there is no automatic migrator. The state file
-  is session-ephemeral (`.work-state/` is git-ignored), so the forward path on a schema change is
-  simply to let the next `/team` run rewrite it; the gate hooks degrade gracefully (missing/legacy
-  fields → allow) rather than hard-failing on an old shape. A dedicated migrator would only be
-  warranted if state ever became durable/shared.
-
-## 3.0.1 — Multi-source Definition of Done fan-in
-
-The DoD is no longer single-source. It is still seeded by exploration/discovery/diagnose, but
-every later role now contributes to the same `dod.json`.
-
-### Added
-- **`dod` schema fan-in fields**: items gained optional `id` (`<source>-<n>`) and `source`
-  (contributing stage); the object gained an optional `contributions` audit map
-  (`{<stage_id>: {added, closed, by}}`) and `updated_at`.
-- **APPEND / CLOSE convention** documented in `commands/team.md` (§ Multi-source fan-in) and in
-  each contributing stage file (`exploration`, `architecture`, `implementation`, `code_review`,
-  `qa_tests`, `manual_qa`) and agent (`analyst`/`tech-researcher` via exploration, `architect`,
-  `code-reviewer`, `qa`, `manual-qa`, and the four developers).
-  - APPEND: new criterion with `source` + unique `id`.
-  - CLOSE: flip an existing item `pending` → `met` with concrete evidence.
-  - One DoD-writing stage runs at a time (sequential) — no write races.
-
-## 3.0.0 — Sequenced review pipeline (manual-qa on fixed code) — **BREAKING**
-
-Splits the single parallel `review` consilium (which mixed static review, `qa`, and
-`manual-qa` all at once, against pre-fix code) into an ordered pipeline so manual QA and
-automated tests exercise the code that actually ships:
+### Sequenced review pipeline (BREAKING)
+Splits the single parallel `review` consilium (which mixed static review, `qa`, and `manual-qa`
+at once, against pre-fix code) into an ordered pipeline so manual QA and automated tests exercise
+the code that actually ships:
 
 ```
 code_review → review_fixes → manual_qa (skip_if !has_ui) → qa_tests → summary
 ```
 
-### Added
-- **`code_review` stage** — static review only: `code-reviewer` (+ `security-tester` when
-  `scope.has_security`, + `devops` when `scope.has_infra`). No `qa`/`manual-qa`. Produces the
-  `review` artifact with the same normalized verdict. File: `workflows/stages/code_review.md`.
-- **`manual_qa` stage** — single `manual-qa`, `skip_if: "!scope.has_ui"`, runs **after**
-  `review_fixes` on the fixed code. Produces the new **`manual_qa`** artifact
-  (`verdict` PASS/FAIL, `evidence[]`, `dod_additions[]`, `regressions[]`). Gate:
-  `manual_qa.verdict != FAIL`. File: `workflows/stages/manual_qa.md`.
-- **`qa_tests` stage** — single `qa`, runs **after** `manual_qa`, consumes `manual_qa.evidence`
-  and encodes the observed behavior as automated regression tests. Produces the new
-  **`qa_tests`** artifact. Gate: `manual_qa.verdict == PASS || !scope.has_ui`. File:
-  `workflows/stages/qa_tests.md`.
-- **`feature_spec` artifact** (optional, 8 sections) — the `discovery` stage of `full-feature`
-  may produce it; `manual-qa` consumes `acceptance_criteria` as its checklist. Schema +
-  `workflows/stages/feature_spec.md`.
-- **Numbered-issue picker** in `review_fixes` (`fix_selection` checkpoint) — `AskUserQuestion`
-  multi-select over numbered findings; default preselect = CRITICAL+HIGH.
-- Schema definitions: `manual_qa`, `qa_tests`, `feature_spec` in
-  `workflows/artifacts-schema.json`.
+- **`code_review`** — static only: `code-reviewer` (+ `security-tester` if `scope.has_security`,
+  + `devops` if `scope.has_infra`). No `qa`/`manual-qa`. Produces `review`.
+- **`manual_qa`** — single `manual-qa`, `skip_if !scope.has_ui`, runs **after** `review_fixes` on
+  the fixed code. New `manual_qa` artifact (`verdict` PASS/FAIL, `evidence[]`, `dod_additions[]`,
+  `regressions[]`). Gate `manual_qa.verdict != FAIL`.
+- **`qa_tests`** — single `qa`, runs **after** `manual_qa`, encodes `manual_qa.evidence` into
+  automated regression tests. New `qa_tests` artifact. Gate `manual_qa.verdict == PASS || !has_ui`.
+- **`feature_spec`** artifact (optional, 8 sections) — `full-feature` discovery may produce it;
+  `manual-qa` consumes `acceptance_criteria`.
+- Numbered-issue picker in `review_fixes` (`fix_selection`), default preselect CRITICAL+HIGH.
+- Profiles rewired: `full-feature`, `standard` (+`has_infra` parity), `lightweight` (qa_tests, no
+  manual_qa for QUICK), `bug-fix` (+manual_qa), `debug-cycle` (+qa_tests). `review`/`emergency`
+  keep their `review` stage.
+- Agents: `manual-qa` produces `manual_qa` (was a string in `debug`); `qa` owns `qa_tests`.
 
-### Changed
-- **`full-feature.json`, `standard.json`, `lightweight.json`, `bug-fix.json`,
-  `debug-cycle.json`** rewired to the sequenced pipeline. `standard` gained the `has_infra`
-  conditional (parity with `full-feature`). `bug-fix` gained a `manual_qa` stage (skip if no
-  UI); `debug-cycle` gained `qa_tests` before summary.
-- `agents/manual-qa.md` now produces the `manual_qa` artifact (was a string field in `debug`);
-  `agents/qa.md` now owns `qa_tests` and consumes `manual_qa.evidence`.
-- `commands/team.md`: STAGE REFERENCE + agent table updated for the new stages.
+**Migration**: projects with custom `workflows/*.json` referencing a single `review` stage must
+migrate. `review`/`emergency` unchanged. For feature/bug profiles, replace the `review` consilium
+with `code_review` and add `manual_qa` + `qa_tests` before `summary`:
+```sh
+jq '(.stages[] | select(.id=="review")).id = "code_review"' profile.json
+# then hand-add manual_qa (skip_if !scope.has_ui) + qa_tests; drop qa/manual-qa from code_review.
+```
+Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact instead.
 
-### Breaking / migration
-- Projects on v2.4.x with **custom `workflows/*.json` profiles** that reference a single
-  `review` stage must migrate to the new stage ids. `review`/`emergency` profiles are
-  unchanged (they keep a `review` stage). For the feature/bug profiles, replace the old
-  `review` consilium with `code_review` and add `manual_qa` + `qa_tests`. Codemod sketch:
-  ```sh
-  # In feature/standard/lightweight profiles: rename the static review stage id.
-  jq '(.stages[] | select(.id=="review")).id = "code_review"' profile.json
-  # Then hand-add manual_qa (skip_if !scope.has_ui) and qa_tests stages before summary,
-  # and drop qa/manual-qa from the code_review consilium roles. See the shipped profiles.
-  ```
-- Any tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact instead.
+### Multi-source Definition of Done fan-in
+- `dod` schema: items gain optional `id` (`<source>-<n>`) + `source`; the object gains a
+  `contributions` audit map and `updated_at`.
+- APPEND/CLOSE convention documented in `commands/team.md` (§ Multi-source fan-in) and in the
+  contributing stage files + agents (architect, code-reviewer, qa, manual-qa, developers;
+  analyst/tech-researcher via exploration). Sequential DoD writes — no races.
 
-## 2.4.2 — Hook block messages to stderr + routing hardening
+### Hook block-messaging + routing hardening
+- **All blocking hook messages go to stderr** — `exit 2` feeds only stderr back to Claude; stdout
+  on a block was silently dropped. Fixed in `dod-gate.sh`, `safety-guard.sh`, `validate-state.sh`,
+  and the inline chrome/mobile guards.
+- `dod-gate.sh`: branch mismatch → warn + **archive** stale state to `.work-state/archive/`
+  (created first); `pause.kind` validated against a whitelist (warn, never block).
+- `.manual-qa-active` marker **lazy-created** for the manual-qa agent (PreToolUse env probe on
+  `CLAUDE_AGENT_TYPE`); non-manual-qa callers still blocked; `SubagentStop` cleans it up;
+  `SessionStart` pre-creates `.work-state/archive/`.
+- `has_ui` documented as an interpreter built-in (`scope ∩ {frontend, mobile}`), not a config glob.
 
-### Changed
-- **All blocking hook messages now go to stderr.** Per the Claude Code Stop/PreToolUse
-  protocol, `exit 2` feeds only **stderr** back to Claude; stdout on a block was silently
-  dropped. Fixed in `dod-gate.sh`, `safety-guard.sh`, `validate-state.sh`, and the inline
-  chrome/mobile guards in `hooks.json`.
-- **Stale-state handling in `dod-gate.sh`**: on a branch mismatch it now warns (stderr) and
-  **archives** the stale state to `.work-state/archive/` (created first) instead of silently
-  skipping. `pause.kind` is validated against a whitelist (warn, never block).
-- **`.manual-qa-active` marker is lazy-created** for the manual-qa agent (PreToolUse env probe
-  on `CLAUDE_AGENT_TYPE`); non-manual-qa callers are still blocked. `SubagentStop` cleans the
-  marker up so it can't leak to the next agent. `SessionStart` pre-creates
-  `.work-state/archive/`.
-- Documented `has_ui` as an interpreter built-in (`scope ∩ {frontend, mobile}`), not a config
-  glob, in `workflows/README.md` and `team.config.example.json`.
+### Coordinator + autonomous yolo loop
+- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
+  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
+  rollup + new-profile proposals).
+- **Agents**: `coordinator` (opus, read-only, green) and `coordinator-yolo` (opus, autonomous,
+  red — dedicated `yolo/*` branch, atomic commits, hard rails, never pushes/merges, DoD enforced).
+- **Skills**: `coordinator`, `coordinator-yolo`, `coordinator-yolo-stop`, `coordinator-stats`,
+  `vision-bootstrap`.
+- **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL activation line per launch
+  to `coordinator/<slug>/profile-usage.jsonl`. Best-effort, never blocks.
+- `agents/diagnostics.md` two-tier gate expanded: Tier 1 diagnostic auto-permitted, Tier 2
+  mutation hard-stops on an explicit bilingual + semantic approval trigger (ambiguity ≠ approval).
+
+### Housekeeping
+- Named architect variants `architect_{minimal,clean,pragmatic}` → resolve to `architect` via the
+  `roles` map (design choice C: 1 architect for MEDIUM/`standard`, 3 for COMPLEX/`full-feature`).
+- Doc drift fixed: `team.md` 13→15 agents + gate example `confidence>=80` → `verdict != reject`;
+  `README.md` 14→15 agents, `developer-go` row, full command list.
+- `frontend-developer` drops the `kmp` skill; `discovery` description mentions Team-Config mode.
+- Note: `team-state.json` has no migrator (session-ephemeral; gates degrade gracefully).
+
+### Verification
+- `tests/test-hooks.sh`: 129 → **181** assertions, all passing. Hooks `bash -n` clean, all
+  workflow/plugin JSON valid, stage referential integrity intact.
 
 ## 2.4.1 — Work-state per-feature subdirs + coordinator/ memory + identity rename
 
