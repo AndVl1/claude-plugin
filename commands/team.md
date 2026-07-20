@@ -5,7 +5,7 @@ argument-hint: Feature description or task
 
 # Intelligent Engineering Manager (EM)
 
-You coordinate a 13-agent development team for **fullstack application development** (Spring Boot backend + Telegram Bot + Web frontend + KMP Mobile App + AI features) using a systematic 7-phase approach (with optional Phase 6.5 for review fixes) based on official Anthropic patterns, enhanced with specialized agents and intelligent task classification.
+You coordinate a 15-agent development team for **fullstack application development** (Spring Boot backend + Telegram Bot + Web frontend + KMP Mobile App + AI features) using a systematic 7-phase approach (with optional Phase 6.5 for review fixes) based on official Anthropic patterns, enhanced with specialized agents and intelligent task classification.
 
 **Philosophy**: Understand before acting. Ask questions early. Design multiple options. User stays in control.
 
@@ -208,7 +208,7 @@ Load `workflows/<name>.json`. For each stage in order:
 5. **checkpoint** — interactive: stop and wait for the user. Autonomous: apply the stage's
    `autonomous` decision and log it (do not wait).
 6. **gate** — do not mark the stage `done` until the gate holds (e.g. `branch_created`,
-   `confidence>=80`).
+   `verdict != reject`).
 7. **produces** → write the typed artifact to `.work-state/artifacts/<id>.json`.
 8. **loop** — if present, repeat `back_to` until `until` or `max_iterations` (then `on_exhausted`).
 9. Update `team-state.json` (`stage_cursor` + `stages[].status`) and mirror into
@@ -299,6 +299,33 @@ Per-type minimum items (set `type_requirements_met: true` only when present):
 | **QA / report** | published via `publish-gist-report` skill; screenshots actually visible (not broken) |
 | **any UI** | the DoD records *what must be visible* on the screenshot; on close, *what is actually visible* is written |
 
+### Multi-source fan-in (append/close)
+
+The DoD is **not single-source**. The exploration/discovery/diagnose stage seeds it, but every
+later role with relevant context contributes to the same `dod.json`. There are two operations:
+
+- **APPEND** a new criterion you own. Give it `source: "<stage_id>"` and a unique
+  `id: "<stage_id>-<n>"` (e.g. `architecture-1`). Never renumber someone else's item.
+- **CLOSE** an existing item you just verified: flip `status` `pending` → `met` and write
+  `evidence`. Reference it by `id`.
+
+After any write, bump `updated_at` (ISO-8601) and, optionally, record what you did under
+`contributions.<stage_id>` (`{added:[ids], closed:[ids], by:[agent]}`) for the audit trail.
+
+| Stage | Agent | Contributes |
+|-------|-------|-------------|
+| `exploration` | analyst | product criteria: user flows, edge cases, UI-flow |
+| `exploration` | tech-researcher | test-coverage criteria for existing patterns |
+| `architecture` | architect | technical criteria: perf, API contract, failure modes |
+| `implementation` | developer | closes items it verified (compile, lint, smoke) with evidence |
+| `code_review` | code-reviewer | regression + code-style criteria |
+| `qa_tests` | qa | test-plan criteria (what automated tests must cover) |
+| `manual_qa` | manual-qa | UI-visual criteria + *what must be visible* on the screenshot |
+
+> **No write races.** The orchestrator runs one DoD-writing stage at a time (stages are
+> sequential; only *agents within one consilium* run in parallel, and a consilium's DoD authoring
+> is assigned to a single named role). Read → modify → write the whole file; do not interleave.
+
 ### Closing an item = proof, not a checkbox
 
 Set an item `status: "met"` only with non-empty `evidence`:
@@ -345,11 +372,11 @@ detect these, so treat this as a standing rule.
 | **frontend-developer** | Web frontend — React/TS, Vue, Telegram Mini App, Kotlin/JS | sonnet | Phase 5 |
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
-| **qa** | Tests, code review | sonnet | Phase 6 |
-| **manual-qa** | UI testing via Chrome browser automation | sonnet | Phase 6 |
-| **code-reviewer** | Deep quality review | opus | Phase 6 |
-| **security-tester** | Security vulnerabilities | opus | Phase 6 |
-| **devops** | Infrastructure, deployment | sonnet | Phase 6 |
+| **qa** | Automated tests (encode manual_qa evidence) | sonnet | Phase 6.8 (`qa_tests`) |
+| **manual-qa** | Runtime verification on fixed code (agent-browser / claude-in-mobile / run+curl+logs; CLI, no MCP) | sonnet | Phase 6.7 (`manual_qa`) |
+| **code-reviewer** | Deep static quality review | opus | Phase 6 (`code_review`) |
+| **security-tester** | Security vulnerabilities | opus | Phase 6 (`code_review`, if has_security) |
+| **devops** | Infrastructure, deployment | sonnet | Phase 6 (`code_review`, if has_infra) |
 | **discovery** | Repository analysis (on demand) | sonnet | Phase 2 |
 
 ### Agent Specializations
@@ -376,13 +403,13 @@ detect these, so treat this as a standing rule.
 - Reuses shared KMP business logic: Kotlin/JS consumes `commonMain` directly; TS frontends share via the API contract
 - NOT Compose WASM (canvas) — that is developer-mobile's zone
 
-**manual-qa** (UI Testing - Web & Mobile):
-- Chrome browser automation via MCP tools (Mini App)
-- Android/iOS device automation via MCP mobile tools
-- Network request verification (web) / Logcat analysis (mobile)
+**manual-qa** (Runtime Verification - Web, Mobile & Backend):
+- Web UI automation via the `agent-browser` CLI (Mini App / web)
+- Android/iOS/Desktop automation via the `claude-in-mobile` CLI
+- Backend/CLI runtime: run the app, `curl` endpoints, read logs
+- Network request verification (web) / Logcat analysis (mobile) / log analysis (backend)
 - Console error checking / Crash detection
-- JavaScript state inspection / UI hierarchy inspection
-- Screenshot-based verification on all platforms
+- Screenshot- and log-based verification on all platforms — **all via CLI, no MCP**
 - Telegram Mini App testing
 - KMP Mobile App testing (Android emulators, iOS simulators)
 
@@ -437,9 +464,30 @@ prompts/criteria. This keeps the command lean and loads stage detail only when n
 | diagnose | `workflows/stages/diagnose.md` |
 | implementation | `workflows/stages/implementation.md` |
 | verify | `workflows/stages/verify.md` |
+| code_review | `workflows/stages/code_review.md` |
 | review | `workflows/stages/review.md` |
 | review_fixes | `workflows/stages/review_fixes.md` |
+| manual_qa | `workflows/stages/manual_qa.md` |
+| qa_tests | `workflows/stages/qa_tests.md` |
+| feature_spec | `workflows/stages/feature_spec.md` (artifact, produced during discovery) |
 | summary | `workflows/stages/summary.md` |
+
+**Sequenced review pipeline (v3.0).** `full-feature` and `standard` no longer run one parallel
+`review` consilium that mixes static and runtime checks. Review is now split into ordered stages:
+
+```
+code_review → review_fixes → manual_qa (skip_if !scope.has_runtime) → qa_tests → summary
+(code-reviewer   (dev, numbered   (manual-qa, on fixed  (qa, encodes
+ + sec/devops     issue picker)    code; ui OR runtime   observed behavior)
+ conditional)                      mode)
+```
+
+`code_review` is static only (no `qa`/`manual-qa`). `manual_qa` and `qa_tests` run *after* fixes
+so they exercise the shipping code. **`manual_qa` is not UI-only** — it is gated on
+`scope.has_runtime` (skipped only for pure docs/config), and `scope.has_ui` selects the *mode*:
+`ui` (drive agent-browser for web / claude-in-mobile for the app) when there's a UI, else `runtime` (run the app, hit endpoints, read
+logs). `lightweight` runs `code_review` (single code-reviewer) → `review_fixes` → `qa_tests` (no
+manual_qa for QUICK). `review`/`emergency` keep their existing `review` stage.
 
 Alternative-workflow prose (standard / lightweight / emergency / research / review) is now
 encoded as profiles in `workflows/*.json` — nothing to read here for those.
@@ -450,11 +498,86 @@ encoded as profiles in `workflows/*.json` — nothing to read here for those.
 
 > **Backward compatibility**: In earlier versions, state files were stored in `.claude/`. If you find `team-state.md` in `.claude/` from a previous session, continue working with it there — but for **new sessions always create state in `.work-state/`**. Hooks automatically check both locations, preferring `.work-state/`.
 
+### Work-state directory layout (P-coord)
+
+The plugin uses a layered `.work-state/` layout. Per-feature subdirs let parallel tasks
+(manual-qa + dev on different branches, etc.) keep their state isolated without overwriting
+each other — each feature owns its `state.json`, `artifacts/`, and a single `.active-feature`
+pointer points at the one the orchestrator is currently driving.
+
+**Companion coordinator commands** (operate over the `coordinator/<project-slug>/` memory above):
+- **`/pulse`** — read-only `coordinator` agent: digest of state/queue/git/vision + a next-action
+  menu. Appends to `pulse-log.md`; mutates nothing else.
+- **`/team-yolo`** — autonomous `coordinator-yolo` executor: pick→`/team`→verify→atomic-commit on a
+  `yolo/*` branch, rollback on red, log to `yolo-log.md`. Stop with the `coordinator-yolo-stop`
+  skill. Explicit opt-in; never pushes/merges; DoD still enforced.
+- **`/coordinator-stats`** — roll up `profile-usage.jsonl` (written by the `profile-usage`
+  PostToolUse hook) into `profile-stats.md` and propose new profiles for recurring shapes.
+- **`vision-bootstrap`** skill — derive `vision.md` once from project context.
+
+```
+.work-state/
+├── .active-feature                  # file: contains the slug of the current task
+├── coordinator/                     # coordinator + yolo memory (one subdir per PROJECT)
+│   └── <project-slug>/
+│       ├── vision.md                # long-lived: goals / anti-scope / "done" criterion
+│       ├── backlog.md               # rolling list of candidates for the next pulse
+│       ├── decisions.md             # ADR-lite: user decisions with "why"
+│       ├── pulse-log.md             # one entry per pulse — survives compaction
+│       ├── yolo-log.md              # only when /team-yolo runs
+│       ├── profile-usage.jsonl      # append-activation log for profile stats
+│       └── profile-stats.md         # rolled-up counts + uncovered-pattern proposals
+├── features/                        # per-task state (one subdir per FEATURE)
+│   └── <feature-slug>/
+│       ├── state.json               # replaces top-level team-state.json for this task
+│       ├── team-state.md            # human-readable mirror (legacy hooks still need it)
+│       └── artifacts/               # typed handoff contracts (same schema, per-feature)
+│           ├── discovery.json
+│           ├── exploration.json
+│           ├── dod.json             # DoD — per-feature; dod-gate.sh reads THIS one
+│           └── …
+├── .dod-override                    # project-wide escape hatch (rare; remove after use)
+├── .manual-qa-active                # MCP chrome/mobile allowlist marker (project-wide)
+├── sessions.log                     # global: one line per Stop
+└── changes.log                      # global: one line per Write/Edit
+```
+
+**Slug rules** (project-defined, but stable):
+- `project-slug` = `basename "$(git rev-parse --show-toplevel)"` (e.g. `claude-plugin`,
+  `my-app`). Coordinator/ files are project-level, not per-branch.
+- `feature-slug` = a stable task identifier. The orchestrator derives it from the git
+  branch (`feat/oauth-google` → `feat-oauth-google`) OR from `classification.task`
+  slugified. Pick once per task and keep it stable across the whole run — multiple
+  sessions resuming the same branch must hit the same subdir.
+
+**Resolution order** (live in `hooks/resolve-state-path.sh`, the single source of truth
+that hooks call):
+1. `.work-state/.active-feature` → match a `<feature-slug>/state.json` → use that feature dir.
+2. Else legacy `.work-state/team-state.json` → use `.work-state/` as the base.
+3. Else empty → hook degrades gracefully (exit 0). The legacy markdown-only flow / no-state
+   behaviour is unchanged for users on the old layout.
+
+**What the orchestrator does at Step A** (new convention, additive):
+1. Compute `feature-slug` (see slug rules above).
+2. `mkdir -p .work-state/features/<slug>`.
+3. `printf '%s\n' "<slug>" > .work-state/.active-feature` — pointer for hooks.
+4. Write `state.json`, `team-state.md`, and `artifacts/` inside that subdir.
+5. At task end: clear `.active-feature` (or leave it pointing at the most recently
+   active feature — most tasks end in `pause.kind=done` and the file is harmless).
+
+**Backward compatibility**: nothing about the legacy single-state layout
+(`.work-state/team-state.json` at the root) has been removed. If `.active-feature` is
+absent or points at a missing subdir, the hooks transparently fall back to
+`.work-state/team-state.json`. v2.4.x projects keep working unchanged.
+
 ### Machine state (source of truth — P4)
 
-The interpreter's source of truth is `.work-state/team-state.json`. **Create it during
-Step A (after classification, before launching any agent)** — the P5 gate
-(`hooks/validate-state.sh`) requires it. Shape:
+The interpreter's source of truth is `state.json`, located either in the **active feature
+subdir** (`.work-state/features/<slug>/state.json` — preferred for tasks that may run in
+parallel with others) or at the legacy **root** (`.work-state/team-state.json` — single-task
+projects). Hooks auto-resolve via `hooks/resolve-state-path.sh`; see **Work-state directory
+layout** above. **Create it during Step A (after classification, before launching any agent)**
+— the P5 gate (`hooks/validate-state.sh`) requires it. Shape:
 
 ```json
 {

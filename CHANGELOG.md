@@ -1,5 +1,138 @@
 # Changelog
 
+## 3.0.0 — Sequenced review pipeline, DoD fan-in, coordinator loop — **BREAKING**
+
+One release covering the plugin overhaul: the review pipeline is resequenced (breaking), the
+Definition of Done becomes multi-source, hook block-messaging is fixed, and a strategic
+coordinator layer (pulse + autonomous yolo loop) is added on top of `/team`.
+
+### Sequenced review pipeline (BREAKING)
+Splits the single parallel `review` consilium (which mixed static review, `qa`, and `manual-qa`
+at once, against pre-fix code) into an ordered pipeline so manual QA and automated tests exercise
+the code that actually ships:
+
+```
+code_review → review_fixes → manual_qa (skip_if !has_runtime) → qa_tests → summary
+```
+
+- **`code_review`** — static only: `code-reviewer` (+ `security-tester` if `scope.has_security`,
+  + `devops` if `scope.has_infra`). No `qa`/`manual-qa`. Produces `review`.
+- **`manual_qa`** — single `manual-qa`, `skip_if !scope.has_runtime`, runs **after** `review_fixes`
+  on the fixed code. **Not UI-only** — `scope.has_runtime` gates it (skipped only for pure
+  docs/config) and `scope.has_ui` selects the *mode*: `ui` (drive agent-browser for web /
+  claude-in-mobile for the app) else `runtime`
+  (run the app, hit endpoints, read logs). New `manual_qa` artifact (`verdict` PASS/FAIL, `mode`,
+  `evidence[]`, `dod_additions[]`, `regressions[]`). Gate `manual_qa.verdict != FAIL`.
+- **`qa_tests`** — single `qa`, runs **after** `manual_qa`, encodes `manual_qa.evidence` into
+  automated regression tests. New `qa_tests` artifact. Gate
+  `manual_qa.verdict == PASS || !has_runtime`.
+- **`feature_spec`** artifact (optional, 8 sections) — `full-feature` discovery may produce it;
+  `manual-qa` consumes `acceptance_criteria`.
+- Numbered-issue picker in `review_fixes` (`fix_selection`), default preselect CRITICAL+HIGH.
+- Profiles rewired: `full-feature`, `standard` (+`has_infra` parity), `lightweight` (qa_tests, no
+  manual_qa for QUICK), `bug-fix` (+manual_qa), `debug-cycle` (+qa_tests). `review`/`emergency`
+  keep their `review` stage.
+- Agents: `manual-qa` produces `manual_qa` (was a string in `debug`); `qa` owns `qa_tests`.
+
+**Migration**: projects with custom `workflows/*.json` referencing a single `review` stage must
+migrate. `review`/`emergency` unchanged. For feature/bug profiles, replace the `review` consilium
+with `code_review` and add `manual_qa` + `qa_tests` before `summary`:
+```sh
+jq '(.stages[] | select(.id=="review")).id = "code_review"' profile.json
+# then hand-add manual_qa (skip_if !scope.has_runtime) + qa_tests; drop qa/manual-qa from code_review.
+```
+Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact instead.
+
+### Multi-source Definition of Done fan-in
+- `dod` schema: items gain optional `id` (`<source>-<n>`) + `source`; the object gains a
+  `contributions` audit map and `updated_at`.
+- APPEND/CLOSE convention documented in `commands/team.md` (§ Multi-source fan-in) and in the
+  contributing stage files + agents (architect, code-reviewer, qa, manual-qa, developers;
+  analyst/tech-researcher via exploration). Sequential DoD writes — no races.
+
+### Hook block-messaging + routing hardening
+- **All blocking hook messages go to stderr** — `exit 2` feeds only stderr back to Claude; stdout
+  on a block was silently dropped. Fixed in `dod-gate.sh`, `safety-guard.sh`, `validate-state.sh`,
+  and the inline chrome/mobile guards.
+- `dod-gate.sh`: branch mismatch → warn + **archive** stale state to `.work-state/archive/`
+  (created first); `pause.kind` validated against a whitelist (warn, never block).
+- `.manual-qa-active` marker **lazy-created** for the manual-qa agent (PreToolUse env probe on
+  `CLAUDE_AGENT_TYPE`); non-manual-qa callers still blocked; `SubagentStop` cleans it up;
+  `SessionStart` pre-creates `.work-state/archive/`.
+- `has_ui` / `has_runtime` documented as interpreter built-ins (not config globs). `has_runtime`
+  gates `manual_qa`; `has_ui` selects the mode (ui vs runtime) within it.
+
+### Coordinator + autonomous yolo loop
+- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
+  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
+  rollup + new-profile proposals).
+- **Agents**: `coordinator` (opus, read-only, green) and `coordinator-yolo` (opus, autonomous,
+  red — dedicated `yolo/*` branch, atomic commits, hard rails, never pushes/merges, DoD enforced).
+- **Skills**: `coordinator`, `coordinator-yolo`, `coordinator-yolo-stop`, `coordinator-stats`,
+  `vision-bootstrap`.
+- **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL activation line per launch
+  to `coordinator/<slug>/profile-usage.jsonl`. Best-effort, never blocks.
+- `agents/diagnostics.md` two-tier gate expanded: Tier 1 diagnostic auto-permitted, Tier 2
+  mutation hard-stops on an explicit bilingual + semantic approval trigger (ambiguity ≠ approval).
+
+### Housekeeping
+- Named architect variants `architect_{minimal,clean,pragmatic}` → resolve to `architect` via the
+  `roles` map (design choice C: 1 architect for MEDIUM/`standard`, 3 for COMPLEX/`full-feature`).
+- Doc drift fixed: `team.md` 13→15 agents + gate example `confidence>=80` → `verdict != reject`;
+  `README.md` 14→15 agents, `developer-go` row, full command list.
+- `frontend-developer` drops the `kmp` skill; `discovery` description mentions Team-Config mode.
+- Note: `team-state.json` has no migrator (session-ephemeral; gates degrade gracefully).
+
+### Verification
+- `tests/test-hooks.sh`: 129 → **181** assertions, all passing. Hooks `bash -n` clean, all
+  workflow/plugin JSON valid, stage referential integrity intact.
+
+## 2.4.1 — Work-state per-feature subdirs + coordinator/ memory + identity rename
+
+Hoists the orchestrator's per-task state out of `.work-state/`'s root into per-feature
+subdirs so parallel tasks (manual-qa on branch A while the implementer runs branch B)
+don't trample each other's state and artifacts. Also fixes a three-identifier identity
+drift on the Kotlin developer agent.
+
+### Added
+- **Per-feature work-state subdirs** (`.work-state/features/<slug>/{state.json,
+  team-state.md, artifacts/}`). The orchestrator writes the current task's slug into
+  `.work-state/.active-feature` at Step A; the gate hooks resolve state from there,
+  falling back to the legacy `.work-state/team-state.json` for projects on the older
+  single-state layout. Two layouts, same gates — existing v2.4.x projects keep working
+  unchanged. See `commands/team.md` § Work-state directory layout for the full map.
+- **`hooks/resolve-state-path.sh`** — single source of truth for the active state file
+  path. `dod-gate.sh` and `validate-state.sh` both call it (instead of hard-coding
+  `.work-state/team-state.json`) so any future layout change is one edit, not two. Test
+  override: `WORK_STATE_DIR` env var.
+- **`coordinator/` memory directory convention** at `.work-state/coordinator/<project-slug>/`
+  for vision / backlog / decisions / pulse-log / yolo-log / profile-usage.jsonl /
+  profile-stats.md — the home of the future read-only coordinator and autonomous yolo
+  executor (PR-4 in the audit report). Project-slug = `basename "$(git rev-parse
+  --show-toplevel)"`. Not implemented yet, just reserved.
+
+### Changed
+- **`developer-backend` → `developer-kotlin` identity** across 4 files (frontmatter,
+  `workflows/team.config.example.json` × 2, `workflows/README.md`, `README.md`). The
+  Kotlin file is canonical; the older `developer-backend` string was residue from
+  before the Go split in 2.3.0 and the `backend-kotlin` scope rename. `/init-team` and
+  the interpreter resolve by `subagent_type` string, so callers using the bare name in
+  a project's `team.config.json` must rename `developer-backend` → `developer-kotlin`.
+  No behavioural change: same agent, same skills, same model. Same goes for `team.md`
+  (already used `developer-kotlin`).
+- **`hooks/dod-gate.sh` / `hooks/validate-state.sh`** now derive STATE and DOD paths
+  via the helper instead of hard-coding `.work-state/team-state.json` and
+  `.work-state/artifacts/dod.json`. State and DOD stay co-located (under the same base
+  dir) for both layouts.
+
+### Tests
+- `tests/test-hooks.sh`: 120 → 129 assertions (+9). New: resolve-state-path empty /
+  legacy / active-feature match / active-feature missing-subdir-fallback / feature
+  precedence / whitespace-only slug / WORK_STATE_DIR override + dod-gate end-to-end
+  through per-feature layout (synthetic done-claim in a per-feature state.json without
+  a DoD artifact → blocks, proving the helper is wired into the hook, not just
+  isolated).
+
 ## 2.4.0 — Review verdicts + safety hooks + /init-team project config
 
 Borrows three patterns from the xpowers/superpowers plugin (deterministic verdicts, fail-closed

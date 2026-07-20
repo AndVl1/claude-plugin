@@ -16,8 +16,16 @@
 
 set -u
 
-STATE="${TEAM_STATE_JSON:-.work-state/team-state.json}"
-STATE_MD="${TEAM_STATE_MD:-.work-state/team-state.md}"
+# Active state: per-feature subdir (when .work-state/.active-feature is set) or legacy
+# .work-state/ root. Helper at hooks/resolve-state-path.sh emits the state FILE path;
+# STATE_MD is derived from dirname(STATE) so the markdown mirror stays co-located.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEFAULT_STATE="$(bash "$SCRIPT_DIR/resolve-state-path.sh")"
+DEFAULT_STATE="${DEFAULT_STATE:-.work-state/team-state.json}"
+
+STATE="${TEAM_STATE_JSON:-$DEFAULT_STATE}"
+STATE_DIR="$(dirname "$STATE")"
+STATE_MD="${TEAM_STATE_MD:-$STATE_DIR/team-state.md}"
 
 # No JSON state. If a markdown state exists, the run is on the legacy flow and the
 # determinism/DoD gates are DORMANT (they key off team-state.json) — nudge to migrate.
@@ -49,7 +57,7 @@ OVERRIDE=$(jq -r '.workflow_override // false' "$STATE")
 
 # ── P5: classification gate ─────────────────────────────────────────────────────
 if [ -z "$TYPE" ]; then
-  echo "🚫 BLOCK (P5): team-state.json has no classification.type. Classify the request and write the CLASSIFICATION block to state BEFORE launching agents."
+  echo "🚫 BLOCK (P5): team-state.json has no classification.type. Classify the request and write the CLASSIFICATION block to state BEFORE launching agents." >&2
   exit 2
 fi
 
@@ -80,8 +88,8 @@ expected_workflow() {
 EXPECTED=$(expected_workflow "$TYPE" "$COMPLEXITY" "$AUTONOMOUS")
 
 if [ "$OVERRIDE" != "true" ] && [ -n "$EXPECTED" ] && [ -n "$WORKFLOW" ] && [ "$WORKFLOW" != "$EXPECTED" ]; then
-  echo "🚫 BLOCK (P5): workflow '$WORKFLOW' does not match classification (type=$TYPE complexity=$COMPLEXITY autonomous=$AUTONOMOUS → expected '$EXPECTED')."
-  echo "    Fix the workflow in team-state.json, or set \"workflow_override\": true to override intentionally."
+  echo "🚫 BLOCK (P5): workflow '$WORKFLOW' does not match classification (type=$TYPE complexity=$COMPLEXITY autonomous=$AUTONOMOUS → expected '$EXPECTED')." >&2
+  echo "    Fix the workflow in team-state.json, or set \"workflow_override\": true to override intentionally." >&2
   exit 2
 fi
 
@@ -100,8 +108,8 @@ if [ "$HAS_STAGES" = "yes" ]; then
       end
   ' "$STATE")
   if [ "$VIOLATION" = "violation" ]; then
-    echo "🚫 BLOCK (P4): stage progress is not monotonic in team-state.json — a later stage is done/in_progress while an earlier stage is still pending."
-    echo "    Update stages[] to reflect reality (mark skipped stages 'skipped', not 'pending') before launching agents."
+    echo "🚫 BLOCK (P4): stage progress is not monotonic in team-state.json — a later stage is done/in_progress while an earlier stage is still pending." >&2
+    echo "    Update stages[] to reflect reality (mark skipped stages 'skipped', not 'pending') before launching agents." >&2
     exit 2
   fi
 fi

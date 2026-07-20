@@ -128,9 +128,65 @@
         "pr_url": { "type": ["string", "null"] }
       }
     },
+    "manual_qa": {
+      "type": "object",
+      "description": "Manual runtime-verification verdict, produced by the manual-qa agent AFTER review_fixes — it exercises the code that will actually ship, not a pre-fix snapshot. NOT UI-only: on a UI scope it drives the real UI (agent-browser CLI for web / claude-in-mobile CLI for the app); on a backend/CLI scope it runs the app, hits endpoints, and reads logs/output. All via CLI, no MCP. Gated on scope.has_runtime (skipped only for pure docs/config work). Consumed by qa_tests (evidence → automated regression tests) and by summary. Replaces the old string field inside `debug`.",
+      "required": ["verdict", "evidence"],
+      "properties": {
+        "verdict": { "enum": ["PASS", "FAIL"], "description": "PASS only if every acceptance criterion was observed working at runtime. A missing/unknown verdict is treated as FAIL — it never auto-passes." },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Concrete observations. UI: screenshot path + WHAT IS VISIBLE on it. Backend/CLI: the command/curl run + the actual response/exit code, and the relevant log lines. A bare 'looks good' is not evidence."
+        },
+        "mode": { "enum": ["ui", "runtime"], "description": "Which verification mode was used: 'ui' (agent-browser CLI for web / claude-in-mobile CLI for the app) when scope.has_ui, else 'runtime' (run/curl/logs)." },
+        "dod_additions": {
+          "type": "array",
+          "description": "UI/visual acceptance criteria manual-qa appends back to dod.json (see multi-source DoD fan-in). Each item uses the dod item shape.",
+          "items": {
+            "type": "object",
+            "required": ["criterion", "verify_method", "status"],
+            "properties": {
+              "criterion": { "type": "string" },
+              "verify_method": { "type": "string" },
+              "status": { "enum": ["pending", "met"] },
+              "evidence": { "type": "string" },
+              "source": { "type": "string", "description": "Contributing stage id, e.g. manual_qa." }
+            }
+          }
+        },
+        "regressions": { "type": "array", "items": { "type": "string" }, "description": "Pre-existing behavior that broke during testing — empty array if none." }
+      }
+    },
+    "qa_tests": {
+      "type": "object",
+      "description": "Automated tests written by the qa agent AFTER manual_qa, encoding the manually-observed behavior (manual_qa.evidence) as durable regression tests. Only accepted when manual_qa.verdict == PASS, or when the task has no UI (!scope.has_ui) so manual_qa was skipped.",
+      "required": ["tests_added", "build_status"],
+      "properties": {
+        "tests_added": { "type": "array", "items": { "type": "string" }, "description": "Test files/cases added or updated." },
+        "build_status": { "enum": ["pass", "fail", "n/a"] },
+        "coverage_note": { "type": "string" },
+        "based_on_manual_qa": { "type": "boolean", "description": "true when the tests encode manual_qa observations (has_ui path)." }
+      }
+    },
+    "feature_spec": {
+      "type": "object",
+      "description": "Optional slim feature specification — 8 sections distilled from a 15-section template. The discovery stage of a FEATURE workflow MAY produce it when the task warrants a written contract; it is not mandatory. Consumed by architecture and by manual-qa (acceptance_criteria becomes the manual test checklist). Gate-able via feature_spec_present when a project wants to require it.",
+      "required": ["goal", "scope", "acceptance_criteria"],
+      "properties": {
+        "goal": { "type": "string", "description": "One-paragraph statement of what and why." },
+        "scope": { "type": "array", "items": { "type": "string" }, "description": "What is in scope." },
+        "anti_scope": { "type": "array", "items": { "type": "string" }, "description": "Explicitly out of scope — the boundary." },
+        "api_contract": { "type": "object", "description": "DTOs/endpoints/signatures the feature exposes." },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" }, "description": "Observable pass/fail criteria; manual-qa consumes these directly as its checklist." },
+        "testing_strategy": { "type": "string", "description": "How the feature will be tested (manual + automated)." },
+        "risks": { "type": "array", "items": { "type": "string" } },
+        "decisions": { "type": "array", "items": { "type": "string" }, "description": "ADR-lite: decision + rationale pairs." }
+      }
+    },
     "dod": {
       "type": "object",
-      "description": "Definition of Done — acceptance criteria fixed BEFORE code, each with how it is verified and (when closed) the proof. Produced early (clarify/discovery/diagnose), consumed by review/summary. The dod_complete gate and the Stop backstop (hooks/dod-gate.sh) require every item met WITH evidence before a task may claim done.",
+      "description": "Definition of Done — acceptance criteria fixed BEFORE code, each with how it is verified and (when closed) the proof. Produced early (clarify/discovery/diagnose), then FANNED IN by later stages: every role with relevant context may APPEND items (with source + unique id) or CLOSE an existing item (pending→met with evidence). The dod_complete gate and the Stop backstop (hooks/dod-gate.sh) require every item met WITH evidence before a task may claim done.",
       "required": ["items"],
       "properties": {
         "items": {
@@ -140,6 +196,8 @@
             "type": "object",
             "required": ["criterion", "verify_method", "status"],
             "properties": {
+              "id": { "type": "string", "description": "Unique item id, convention `<source>-<n>` (e.g. architecture-1). Lets fan-in contributors append without colliding and lets closers reference a specific item." },
+              "source": { "type": "string", "description": "Stage id that contributed this item (e.g. exploration, architecture, code_review, qa_tests, manual_qa). Defaults to the producing stage." },
               "criterion": { "type": "string", "description": "Concrete, observable acceptance criterion — not 'works' but what specifically must happen." },
               "verify_method": { "type": "string", "description": "How it is checked: a manual-qa scenario, a screenshot that must show X, a test, a curl." },
               "status": { "enum": ["pending", "met"], "description": "'met' requires non-empty evidence." },
@@ -147,6 +205,19 @@
             }
           }
         },
+        "contributions": {
+          "type": "object",
+          "description": "Optional audit trail of the fan-in: keyed by contributing stage id. The interpreter/hooks never require it, but it makes the multi-source history inspectable.",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "added": { "type": "array", "items": { "type": "string" }, "description": "Item ids this stage appended." },
+              "closed": { "type": "array", "items": { "type": "string" }, "description": "Item ids this stage moved pending→met." },
+              "by": { "type": "array", "items": { "type": "string" }, "description": "Agent name(s) that made the contribution." }
+            }
+          }
+        },
+        "updated_at": { "type": "string", "description": "ISO-8601 timestamp of the last append/close. Bumped on every fan-in write." },
         "type_requirements_met": {
           "type": "boolean",
           "description": "Confirms the per-type minimum items are present. Minimums: BUG_FIX → root cause named (not symptom) + repro-before reproduces + repro-after does not + affected scenario checked in manual-qa. FEATURE → each acceptance criterion mapped to a manual-qa step (both remote+docker modes if the feature touches agent/sessions). QA/report → published via publish-gist-report skill, screenshots actually visible (not broken). Any UI → DoD records what must be visible on the screenshot; on close, what is actually visible is written."

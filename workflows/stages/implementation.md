@@ -125,3 +125,11 @@
 
 ---
 
+
+### DoD fan-in (close what you verified)
+
+As the developer you mostly **close** items, not append: for every DoD item you personally
+verified (compiles, lints, smoke-tested), flip its `status` `pending` → `met` and write concrete
+`evidence` (build output, command run). Reference the item by `id`; bump `updated_at`. Only
+append a new item if you introduced a criterion nobody else captured. See `commands/team.md`
+§ Multi-source fan-in.

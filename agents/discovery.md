@@ -1,7 +1,7 @@
 ---
 name: discovery
 model: sonnet
-description: Repository discovery agent - analyzes codebases to generate context files for team workflows
+description: Repository discovery agent - analyzes codebases to generate context files for team workflows, and runs Team-Config discovery mode for /init-team (stack + agent inventory → .claude/team.config.json)
 color: yellow
 tools: Read, Glob, Grep, Bash
 ---

@@ -105,10 +105,135 @@ else
 fi
 
 echo ""
+echo "=== resolve-state-path.sh (work-state layout resolver) ==="
+RESOLVE="$(dirname "$HOOKS_FILE")/resolve-state-path.sh"
+
+# 1) No work-state at all → empty output (graceful).
+sb=$(mktemp -d)
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ -z "$out" ]; then
+  log_pass "resolve-state-path: no work-state → empty"
+else
+  log_fail "resolve-state-path: no work-state → empty" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 2) Legacy single-state → resolves to legacy team-state.json file path.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"; printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: legacy team-state.json → legacy file"
+else
+  log_fail "resolve-state-path: legacy team-state.json → legacy file" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 3) Active feature with matching subdir → resolves to that feature's state.json.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-login-fix"
+printf '{"schema":1}\n' > "$sb/.work-state/features/feat-login-fix/state.json"
+printf 'feat-login-fix\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/features/feat-login-fix/state.json" ]; then
+  log_pass "resolve-state-path: active-feature + matching state → feature file"
+else
+  log_fail "resolve-state-path: active-feature + matching state → feature file" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 4) Active feature set but pointing at missing subdir → falls back to legacy if present.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf 'feat-ghost\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: active-feature → missing subdir falls back to legacy"
+else
+  log_fail "resolve-state-path: active-feature → missing subdir falls back to legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 5) Active feature + legacy both present → feature wins (new convention preferred).
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-a"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf '{"schema":1}\n' > "$sb/.work-state/features/feat-a/state.json"
+printf 'feat-a\n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/features/feat-a/state.json" ]; then
+  log_pass "resolve-state-path: feature takes precedence over legacy"
+else
+  log_fail "resolve-state-path: feature takes precedence over legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 6) Whitespace-only .active-feature → empty slug, ignored.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+printf '{"schema":1}\n' > "$sb/.work-state/team-state.json"
+printf '   \n' > "$sb/.work-state/.active-feature"
+out=$(cd "$sb" && bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ "$out" = ".work-state/team-state.json" ]; then
+  log_pass "resolve-state-path: whitespace-only active-feature → legacy"
+else
+  log_fail "resolve-state-path: whitespace-only active-feature → legacy" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 7) Active feature file is itself valid in WORK_STATE_DIR sandbox.
+sb=$(mktemp -d)
+out=$(cd "$sb" && WORK_STATE_DIR=.work-state bash "$RESOLVE" 2>&1); ec=$?
+if [ "$ec" = "0" ] && [ -z "$out" ]; then
+  log_pass "resolve-state-path: WORK_STATE_DIR override honored"
+else
+  log_fail "resolve-state-path: WORK_STATE_DIR override honored" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 8) dod-gate reads via helper: missing state → graceful exit 0 (legacy allow).
+sb=$(mktemp -d)
+DOD_HOOK="$(dirname "$HOOKS_FILE")/dod-gate.sh"
+out=$(cd "$sb" && bash "$DOD_HOOK" 2>&1); ec=$?
+if [ "$ec" = "0" ]; then
+  log_pass "dod-gate: missing state → graceful exit 0 (helper)"
+else
+  log_fail "dod-gate: missing state → graceful exit 0 (helper)" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# 9) dod-gate end-to-end: per-feature state file in WORK_STATE_DIR sandbox, done-claim,
+#    no DoD artifact under that feature → blocks. Proves per-feature layout is wired.
+sb=$(mktemp -d); mkdir -p "$sb/.work-state/features/feat-end-to-end"
+if (cd "$sb" && git init -q -b test-branch 2>/dev/null); then
+  BR=$(cd "$sb" && git rev-parse --abbrev-ref HEAD 2>/dev/null)
+  cat > "$sb/.work-state/features/feat-end-to-end/state.json" <<EOF
+{"schema":1,"branch":"$BR","classification":{"type":"FEATURE","workflow":"standard"},"pause":{"kind":"done"},"stage_cursor":"summary"}
+EOF
+  printf 'feat-end-to-end\n' > "$sb/.work-state/.active-feature"
+  out=$(cd "$sb" && WORK_STATE_DIR=.work-state bash "$DOD_HOOK" 2>&1); ec=$?
+  if [ "$ec" = "2" ] && echo "$out" | grep -q "BLOCK (DoD)"; then
+    log_pass "dod-gate: per-feature done-claim without DoD → BLOCK (end-to-end)"
+  else
+    log_fail "dod-gate: per-feature done-claim without DoD → BLOCK (end-to-end)" "ec=$ec out='$out'"
+  fi
+else
+  log_pass "dod-gate: skipped end-to-end (no git in sandbox)"
+fi
+rm -rf "$sb"
+
+echo ""
 echo "=== SessionStart ==="
 cmd=$(get_cmd_idx SessionStart 0)
 out=$(bash -c "$cmd"); ec=$?
 assert "SessionStart prints banner" 0 "Dream Team" "$ec" "$out"
+
+# PR-1: SessionStart also pre-creates .work-state/archive/ (for stale-state archiving)
+archcmd=$(jq -r '.hooks.SessionStart[0].hooks[1].command' "$HOOKS_FILE")
+sb=$(mktemp -d)
+run_in_sandbox "$sb" "$archcmd" >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ -d "$sb/.work-state/archive" ]; then
+  log_pass "SessionStart creates .work-state/archive/"
+else
+  log_fail "SessionStart creates .work-state/archive/" "ec=$ec dir=$( [ -d "$sb/.work-state/archive" ] && echo yes || echo no )"
+fi
+rm -rf "$sb"
 
 echo ""
 echo "=== PostToolUse Write|Edit (changes.log) ==="
@@ -303,6 +428,22 @@ out=$(run_in_sandbox "$sb" "$cmd"); ec=$?
 assert "chrome tool with marker → pass" 0 "" "$ec" "$out"
 rm -rf "$sb"
 
+# PR-1: manual-qa agent (env probe) with no marker → auto-create + allow
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:manual-qa"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "chrome tool as manual-qa → lazy auto-create marker + allow"
+else
+  log_fail "chrome tool as manual-qa → lazy auto-create marker + allow" "ec=$ec marker=$( [ -f "$sb/.work-state/.manual-qa-active" ] && echo yes || echo no )"
+fi
+rm -rf "$sb"
+
+# PR-1: non-manual-qa agent with no marker → still block (protection preserved)
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:developer-kotlin"); ec=$?
+assert "chrome tool as non-manual-qa → block" 2 "MCP Chrome tools restricted" "$ec" "$out"
+rm -rf "$sb"
+
 echo ""
 echo "=== PreToolUse mcp__mobile__* ==="
 cmd=$(get_cmd "PreToolUse" "mcp__mobile__(screenshot|get_ui|analyze_screen|tap|long_press|swipe|find_and_tap|tap_by_text|input_text|press_key|find_element|get_current_activity|launch_app|stop_app|shell|open_url|get_logs|launch_desktop_app|stop_desktop_app|get_window_info|focus_window|resize_window|get_clipboard|set_clipboard)")
@@ -316,6 +457,22 @@ sb=$(mktemp -d)
 mkdir -p "$sb/.work-state"; touch "$sb/.work-state/.manual-qa-active"
 out=$(run_in_sandbox "$sb" "$cmd"); ec=$?
 assert "mobile tool with marker → pass" 0 "" "$ec" "$out"
+rm -rf "$sb"
+
+# PR-1: manual-qa agent (env probe) with no marker → auto-create + allow
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:manual-qa"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "mobile tool as manual-qa → lazy auto-create marker + allow"
+else
+  log_fail "mobile tool as manual-qa → lazy auto-create marker + allow" "ec=$ec"
+fi
+rm -rf "$sb"
+
+# PR-1: non-manual-qa agent with no marker → still block
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:developer-mobile"); ec=$?
+assert "mobile tool as non-manual-qa → block" 2 "MCP Mobile interaction tools restricted" "$ec" "$out"
 rm -rf "$sb"
 
 echo ""
@@ -345,6 +502,17 @@ echo "=== SubagentStop ==="
 cmd=$(get_cmd_idx SubagentStop 0)
 out=$(bash -c "$cmd"); ec=$?
 assert "SubagentStop prints reminder" 0 "Subagent finished" "$ec" "$out"
+
+# PR-1: SubagentStop cleans up the .manual-qa-active marker so it doesn't leak to the next agent
+clcmd=$(jq -r '.hooks.SubagentStop[0].hooks[1].command' "$HOOKS_FILE")
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"; touch "$sb/.work-state/.manual-qa-active"
+run_in_sandbox "$sb" "$clcmd" >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ ! -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "SubagentStop removes .manual-qa-active marker"
+else
+  log_fail "SubagentStop removes .manual-qa-active marker" "ec=$ec marker=$( [ -f "$sb/.work-state/.manual-qa-active" ] && echo present || echo gone )"
+fi
+rm -rf "$sb"
 
 echo ""
 echo "=== PreToolUse Task (validate-state.sh — P4/P5) ==="
@@ -508,6 +676,39 @@ sb=$(mktemp -d)
 out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
 assert "dod-gate no state → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
 
+# PR-1: blocking messages go to STDERR (Stop-hook protocol: only stderr feeds Claude on exit 2)
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary"}'
+errout=$( (cd "$sb" && env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x" bash -c "$cmd" 2>/tmp/dg_err.$$ 1>/dev/null); cat /tmp/dg_err.$$ ); rm -f /tmp/dg_err.$$
+echo "$errout" | grep -qF "BLOCK (DoD)" \
+  && log_pass "dod-gate BLOCK message on stderr" \
+  || log_fail "dod-gate BLOCK message on stderr" "not on stderr: '$errout'"
+rm -rf "$sb"
+
+# PR-1: unknown pause.kind → warn (never block), fall through
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation","pause":{"kind":"bogus"}}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate unknown pause.kind → warn+allow" 0 "unknown pause.kind" "$ec" "$out"; rm -rf "$sb"
+
+# PR-1: known pause.kind → no unknown-warning
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation","pause":{"kind":"background_wait"}}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+if [ "$ec" = "0" ] && ! echo "$out" | grep -q "unknown pause.kind"; then
+  log_pass "dod-gate known pause.kind → no warn"
+else
+  log_fail "dod-gate known pause.kind → no warn" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# PR-1: branch mismatch → warn + archive stale state (mkdir first)
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/OLD"},"stage_cursor":"summary"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/archive/team-state.json.feat-OLD.bak" ] && [ ! -f "$sb/.work-state/team-state.json" ]; then
+  log_pass "dod-gate branch mismatch → archives stale state"
+else
+  log_fail "dod-gate branch mismatch → archives stale state" "ec=$ec archived=$(ls "$sb/.work-state/archive" 2>/dev/null) out='$out'"
+fi
+rm -rf "$sb"
+
 echo ""
 echo "=== PreToolUse Write|Edit root-cause reminder (BUG_FIX §4) ==="
 cmd=$(get_cmd_n "PreToolUse" "Write|Edit" 1)
@@ -663,6 +864,198 @@ grep -q 'verdict != reject' "$REPO_ROOT/workflows/full-feature.json" \
 jq -e '.definitions.review.required | index("verdict")' "$REPO_ROOT/workflows/artifacts-schema.json" >/dev/null \
   && log_pass "review artifact requires a normalized verdict" \
   || log_fail "review artifact verdict" "verdict not required in schema"
+
+echo ""
+echo "=== sequenced review pipeline (v3.0 — PR-2) ==="
+SCHEMA="$REPO_ROOT/workflows/artifacts-schema.json"
+FF="$REPO_ROOT/workflows/full-feature.json"
+ST="$REPO_ROOT/workflows/standard.json"
+LW="$REPO_ROOT/workflows/lightweight.json"
+
+# new artifact schema definitions exist with their required fields
+jq -e '.definitions.manual_qa.required | (index("verdict") and index("evidence"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa artifact schema present (verdict+evidence required)" \
+  || log_fail "manual_qa schema" "missing or wrong required set"
+jq -e '.definitions.manual_qa.properties.verdict.enum | (index("PASS") and index("FAIL"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa.verdict enum = PASS|FAIL" \
+  || log_fail "manual_qa.verdict enum" "not PASS|FAIL"
+jq -e '.definitions.qa_tests.required | index("tests_added")' "$SCHEMA" >/dev/null \
+  && log_pass "qa_tests artifact schema present" \
+  || log_fail "qa_tests schema" "missing"
+jq -e '.definitions.feature_spec.required | (index("goal") and index("acceptance_criteria"))' "$SCHEMA" >/dev/null \
+  && log_pass "feature_spec artifact schema present" \
+  || log_fail "feature_spec schema" "missing"
+
+# full-feature: code_review → review_fixes → manual_qa → qa_tests → summary, in order
+order=$(jq -r '[.stages[].id] | join(",")' "$FF")
+case "$order" in
+  *code_review,review_fixes,manual_qa,qa_tests,summary) log_pass "full-feature ends with the sequenced pipeline order" ;;
+  *) log_fail "full-feature pipeline order" "got: $order" ;;
+esac
+# code_review is static: roles must NOT contain qa or manual-qa
+jq -e '[.stages[] | select(.id=="code_review") | .roles[]] | (index("qa") or index("manual-qa")) | not' "$FF" >/dev/null \
+  && log_pass "full-feature code_review excludes qa/manual-qa (static only)" \
+  || log_fail "code_review static" "code_review still bundles qa/manual-qa"
+# manual_qa gated on has_runtime (not has_ui) — runs for backend/CLI too; has_ui only selects mode
+jq -e '.stages[] | select(.id=="manual_qa") | .skip_if == "!scope.has_runtime"' "$FF" >/dev/null \
+  && log_pass "full-feature manual_qa skip_if !scope.has_runtime (not has_ui)" \
+  || log_fail "manual_qa skip_if" "expected !scope.has_runtime"
+# manual_qa artifact records mode (ui|runtime)
+jq -e '.definitions.manual_qa.properties.mode.enum | (index("ui") and index("runtime"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa artifact has ui|runtime mode" \
+  || log_fail "manual_qa mode" "missing ui|runtime enum"
+# has_runtime documented as a built-in flag
+grep -q "has_runtime" "$REPO_ROOT/workflows/README.md" \
+  && log_pass "workflows/README documents has_runtime built-in" \
+  || log_fail "has_runtime doc" "missing in workflows/README.md"
+jq -e '.stages[] | select(.id=="manual_qa") | .produces == "manual_qa"' "$FF" >/dev/null \
+  && log_pass "manual_qa stage produces manual_qa artifact" \
+  || log_fail "manual_qa produces" "wrong"
+jq -e '.stages[] | select(.id=="qa_tests") | .produces == "qa_tests"' "$FF" >/dev/null \
+  && log_pass "qa_tests stage produces qa_tests artifact" \
+  || log_fail "qa_tests produces" "wrong"
+
+# standard has_infra conditional parity with full-feature
+jq -e '[.stages[] | select(.id=="code_review") | .conditional[].if] | index("scope.has_infra")' "$ST" >/dev/null \
+  && log_pass "standard code_review has has_infra conditional (parity with full-feature)" \
+  || log_fail "standard has_infra parity" "missing has_infra conditional"
+
+# lightweight: has qa_tests, NO manual_qa (QUICK skips manual QA)
+jq -e '[.stages[].id] | (index("qa_tests") and (index("manual_qa") | not))' "$LW" >/dev/null \
+  && log_pass "lightweight has qa_tests but no manual_qa (QUICK)" \
+  || log_fail "lightweight pipeline" "qa_tests missing or manual_qa present"
+
+echo ""
+echo "=== multi-source DoD fan-in (PR-3) ==="
+# schema: dod gained contributions (audit map) + updated_at, items gained id + source
+jq -e '.definitions.dod.properties.contributions.type == "object"' "$SCHEMA" >/dev/null \
+  && log_pass "dod.contributions audit map in schema" \
+  || log_fail "dod.contributions" "missing"
+jq -e '.definitions.dod.properties.updated_at' "$SCHEMA" >/dev/null \
+  && log_pass "dod.updated_at in schema" \
+  || log_fail "dod.updated_at" "missing"
+jq -e '.definitions.dod.properties.items.items.properties | (.id and .source)' "$SCHEMA" >/dev/null \
+  && log_pass "dod item gained id + source (fan-in provenance)" \
+  || log_fail "dod item id/source" "missing"
+
+# ID uniqueness invariant a fan-in must preserve: [items[].id] | unique == items count
+sb=$(mktemp -d)
+cat > "$sb/dod.json" <<'EOF'
+{ "items": [
+  { "id": "exploration-1", "source": "exploration", "criterion": "login works", "verify_method": "manual-qa", "status": "pending" },
+  { "id": "architecture-1", "source": "architecture", "criterion": "p99 < 200ms", "verify_method": "load test", "status": "pending" },
+  { "id": "manual_qa-1", "source": "manual_qa", "criterion": "error banner visible", "verify_method": "screenshot", "status": "pending" }
+], "updated_at": "2026-07-21T00:00:00Z", "type_requirements_met": false }
+EOF
+uniq_ok=$(jq -r '([.items[].id] | unique | length) == (.items | length)' "$sb/dod.json")
+[ "$uniq_ok" = "true" ] && log_pass "fan-in DoD keeps item ids unique across sources" \
+  || log_fail "fan-in id uniqueness" "duplicate ids across sources"
+rm -rf "$sb"
+
+# stage files carry the append/close instruction
+faninmiss=0
+for s in exploration architecture implementation code_review qa_tests manual_qa; do
+  grep -qi "DoD fan-in" "$REPO_ROOT/workflows/stages/$s.md" || { log_fail "stages/$s.md DoD fan-in note" "missing"; faninmiss=$((faninmiss+1)); }
+done
+[ "$faninmiss" = "0" ] && log_pass "every fan-in stage file documents append/close"
+
+# team.md documents the fan-in convention
+grep -q "Multi-source fan-in" "$REPO_ROOT/commands/team.md" \
+  && log_pass "team.md documents Multi-source fan-in" \
+  || log_fail "team.md fan-in section" "missing"
+
+echo ""
+echo "=== housekeeping / architect variants (PR-5) ==="
+# architect consilium: named variants, count <= 3 (design choice C: 1 MEDIUM / 3 COMPLEX)
+acount=$(jq -r '[.stages[] | select(.id=="architecture") | .roles // [.role]] | flatten | map(select(startswith("architect"))) | length' "$FF")
+[ "$acount" -le 3 ] && [ "$acount" -ge 1 ] \
+  && log_pass "full-feature architecture uses 1..3 architects ($acount)" \
+  || log_fail "full-feature architect count" "got $acount (expected 1..3)"
+jq -e '[.stages[] | select(.id=="architecture") | .roles[]] | (index("architect_minimal") and index("architect_clean") and index("architect_pragmatic"))' "$FF" >/dev/null \
+  && log_pass "full-feature architects are named variants (minimal/clean/pragmatic)" \
+  || log_fail "architect named variants" "not using named variant roles"
+# no repeated bare 'architect' triple left anywhere
+badarch=0
+for p in "$REPO_ROOT"/workflows/{full-feature,standard,lightweight,bug-fix,debug-cycle}.json; do
+  if jq -e '.stages[] | select(.id=="architecture") | (.roles // []) | map(select(. == "architect")) | length > 1' "$p" >/dev/null 2>&1; then
+    log_fail "no duplicated bare architect role in $(basename "$p")" "found repeated \"architect\""; badarch=$((badarch+1))
+  fi
+done
+[ "$badarch" = "0" ] && log_pass "no profile repeats the bare 'architect' role (named variants instead)"
+# team.config maps the variant roles → architect agent
+jq -e '.roles | (.architect_minimal == "architect" and .architect_clean == "architect" and .architect_pragmatic == "architect")' "$REPO_ROOT/workflows/team.config.example.json" >/dev/null \
+  && log_pass "team.config maps architect_* variants → architect agent" \
+  || log_fail "architect variant roles map" "missing in team.config.example.json"
+# doc drift fixed
+grep -q "15-agent" "$REPO_ROOT/commands/team.md" \
+  && log_pass "team.md says 15-agent (drift fixed)" \
+  || log_fail "team.md agent count" "still 13-agent"
+grep -q "15 Specialized Agents" "$REPO_ROOT/README.md" \
+  && log_pass "README says 15 Specialized Agents" \
+  || log_fail "README agent count" "not 15"
+grep -q "developer-go" "$REPO_ROOT/README.md" \
+  && log_pass "README lists developer-go" \
+  || log_fail "README developer-go row" "missing"
+# frontend-developer no longer claims the kmp skill
+grep -qE '^skills:.*\bkmp\b' "$REPO_ROOT/agents/frontend-developer.md" \
+  && log_fail "frontend-developer kmp skill removed" "still lists kmp" \
+  || log_pass "frontend-developer no longer lists kmp skill"
+
+echo ""
+echo "=== coordinator + yolo loop (PR-4) ==="
+PU="$REPO_ROOT/hooks/profile-usage.sh"
+# hook exists and is valid bash
+if [ -f "$PU" ] && bash -n "$PU" 2>/dev/null; then
+  log_pass "hooks/profile-usage.sh present + valid"
+else
+  log_fail "hooks/profile-usage.sh" "missing or syntax error"
+fi
+# appends a JSONL activation line when state is present
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"
+echo '{"classification":{"type":"FEATURE","complexity":"COMPLEX","workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation"}' > "$sb/.work-state/team-state.json"
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1; ec=$?
+JL="$sb/.work-state/coordinator/demo/profile-usage.jsonl"
+if [ "$ec" = "0" ] && [ -f "$JL" ] && jq -e '.workflow == "full-feature" and .type == "FEATURE" and .stage == "implementation"' "$JL" >/dev/null 2>&1; then
+  log_pass "profile-usage appends a valid activation JSONL line"
+else
+  log_fail "profile-usage jsonl" "ec=$ec content=$(cat "$JL" 2>/dev/null)"
+fi
+# second launch appends (not overwrites)
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1
+[ "$(wc -l < "$JL" | tr -d ' ')" = "2" ] \
+  && log_pass "profile-usage is append-only (2 launches → 2 lines)" \
+  || log_fail "profile-usage append" "expected 2 lines, got $(wc -l < "$JL")"
+rm -rf "$sb"
+# no state → no-op, no file created
+sb=$(mktemp -d)
+(cd "$sb" && env WORK_STATE_DIR=".work-state" COORD_SLUG="demo" bash "$PU") >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ ! -f "$sb/.work-state/coordinator/demo/profile-usage.jsonl" ]; then
+  log_pass "profile-usage no state → silent no-op"
+else
+  log_fail "profile-usage no state" "ec=$ec created a file unexpectedly"
+fi
+rm -rf "$sb"
+# wired into hooks.json as a PostToolUse Task hook
+jq -e '[.hooks.PostToolUse[] | select(.matcher == "Task") | .hooks[0].command] | map(select(test("profile-usage.sh"))) | length >= 1' "$HOOKS_FILE" >/dev/null \
+  && log_pass "profile-usage wired as PostToolUse Task hook" \
+  || log_fail "profile-usage wiring" "not in hooks.json PostToolUse"
+
+# new coordinator components exist
+for f in commands/pulse.md commands/team-yolo.md commands/coordinator-stats.md \
+         agents/coordinator.md agents/coordinator-yolo.md \
+         skills/coordinator/SKILL.md skills/coordinator-yolo/SKILL.md \
+         skills/coordinator-yolo-stop/SKILL.md skills/coordinator-stats/SKILL.md \
+         skills/vision-bootstrap/SKILL.md; do
+  [ -f "$REPO_ROOT/$f" ] && log_pass "PR-4 component present: $f" || log_fail "PR-4 component: $f" "missing"
+done
+# coordinator agent is read-only (no Write/Edit in its tools)
+grep -qE '^tools:.*(Write|Edit)' "$REPO_ROOT/agents/coordinator.md" \
+  && log_fail "coordinator agent read-only" "has Write/Edit in tools" \
+  || log_pass "coordinator agent is read-only (no Write/Edit)"
+# diagnostics two-tier gate documents bilingual approval triggers
+grep -qi "исправь" "$REPO_ROOT/agents/diagnostics.md" && grep -qi "go ahead" "$REPO_ROOT/agents/diagnostics.md" \
+  && log_pass "diagnostics two-tier gate has bilingual approval triggers" \
+  || log_fail "diagnostics approval triggers" "missing bilingual set"
 
 echo ""
 echo "=== Go scope wiring (bug #2) ==="

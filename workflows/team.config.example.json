@@ -8,7 +8,10 @@
     "tech-researcher": "tech-researcher",
     "diagnostics": "diagnostics",
     "architect": "architect",
-    "backend-kotlin": "developer-backend",
+    "architect_minimal": "architect",
+    "architect_clean": "architect",
+    "architect_pragmatic": "architect",
+    "backend-kotlin": "developer-kotlin",
     "go": "developer-go",
     "frontend": "frontend-developer",
     "mobile": "developer-mobile",
@@ -39,9 +42,10 @@
     { "glob": ["**/*.tsx", "**/*.jsx", "**/*.vue", "**/*.ts", "**/src/jsMain/**", "**/miniapp/**", "**/frontend/**"], "scope": "frontend", "dev_agent": "frontend-developer" },
     { "glob": ["**/*.go", "**/go.mod", "**/go.sum"], "scope": "go", "dev_agent": "developer-go" },
     { "glob": ["**/Dockerfile", "**/*.yaml", "**/*.yml", "**/helm/**", "**/.github/**", "**/k8s/**"], "scope": "devops", "dev_agent": "devops" },
-    { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend-kotlin", "dev_agent": "developer-backend" }
+    { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend-kotlin", "dev_agent": "developer-kotlin" }
   ],
 
+  "_has_ui_note": "There is deliberately NO flags.has_ui / flags.has_runtime here. Both are interpreter built-ins: has_ui = (scope ∩ {frontend, mobile} ≠ ∅); has_runtime = the task touches any executable/deployable code scope (false only for docs/config-only). has_runtime GATES the manual_qa stage (so backend/CLI runtime checks run too); has_ui SELECTS the mode within it (ui vs runtime). A project MAY override via flags.has_ui / flags.has_runtime (schema allows it via additionalProperties), but that creates a second source of truth — prefer the built-ins.",
   "flags": {
     "has_security": ["**/auth/**", "**/security/**", "**/*crypto*", "**/*Secret*", "**/*Token*"],
     "has_infra": ["**/Dockerfile", "**/helm/**", "**/k8s/**", "**/.github/workflows/**"]

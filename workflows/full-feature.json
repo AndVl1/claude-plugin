@@ -11,7 +11,7 @@
       "gate": "branch_created",
       "checkpoint": "confirm_understanding",
       "autonomous": "log confirmed understanding, continue",
-      "produces": "discovery"
+      "produces": ["discovery", "feature_spec"]
     },
     {
       "id": "exploration",
@@ -35,7 +35,7 @@
       "id": "architecture",
       "title": "Architecture Design",
       "type": "consilium",
-      "roles": ["architect", "architect", "architect"],
+      "roles": ["architect_minimal", "architect_clean", "architect_pragmatic"],
       "parallel": true,
       "consumes": ["exploration", "clarifications"],
       "checkpoint": "user_choice",
@@ -53,14 +53,13 @@
       "produces": "implementation"
     },
     {
-      "id": "review",
-      "title": "Quality Review",
+      "id": "code_review",
+      "title": "Code Review",
       "type": "consilium",
-      "roles": ["qa", "code-reviewer"],
+      "roles": ["code-reviewer"],
       "parallel": true,
       "conditional": [
         { "if": "scope.has_security", "add": "security-tester" },
-        { "if": "scope.has_ui", "add": "manual-qa" },
         { "if": "scope.has_infra", "add": "devops" }
       ],
       "consumes": ["implementation", "architecture"],
@@ -75,13 +74,34 @@
       "type": "single",
       "role": "${scope.dev_agent}",
       "consumes": ["review"],
+      "checkpoint": "fix_selection",
+      "autonomous": "fix CRITICAL+HIGH, defer the rest",
       "skip_if": "review.findings == []"
+    },
+    {
+      "id": "manual_qa",
+      "title": "Manual QA (fixed code)",
+      "type": "single",
+      "role": "manual-qa",
+      "consumes": ["review", "implementation", "architecture", "feature_spec"],
+      "skip_if": "!scope.has_runtime",
+      "gate": "manual_qa.verdict != FAIL",
+      "produces": "manual_qa"
+    },
+    {
+      "id": "qa_tests",
+      "title": "Automated Tests",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["manual_qa", "implementation", "architecture"],
+      "gate": "manual_qa.verdict == PASS || !scope.has_runtime",
+      "produces": "qa_tests"
     },
     {
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "review", "dod"],
+      "consumes": ["implementation", "review", "manual_qa", "qa_tests", "dod"],
       "gate": "dod_complete",
       "produces": "summary"
     }

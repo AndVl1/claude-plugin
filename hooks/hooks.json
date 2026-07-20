@@ -7,6 +7,11 @@
             "type": "command",
             "command": "echo '🚀 Dream Team v2.3 Ready | 15 agents | State sync enabled'",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "mkdir -p .work-state/archive 2>/dev/null || true",
+            "timeout": 5
           }
         ]
       }
@@ -28,6 +33,16 @@
           {
             "type": "command",
             "command": "STATE_FILE='.work-state/team-state.md'; if [ ! -f \"$STATE_FILE\" ] && [ -f '.claude/team-state.md' ]; then STATE_FILE='.claude/team-state.md'; fi; if [ -f \"$STATE_FILE\" ]; then if [ \"$(uname)\" = \"Darwin\" ]; then LAST_MOD=$(stat -f %m \"$STATE_FILE\"); else LAST_MOD=$(stat -c %Y \"$STATE_FILE\"); fi; NOW=$(date +%s); AGE=$((NOW - LAST_MOD)); if [ $AGE -gt 300 ]; then echo '⚠️ STATE REMINDER: Agent completed. Update .work-state/team-state.md with phase results before proceeding.'; fi; fi",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SCRIPT=\"${CLAUDE_PLUGIN_ROOT:-.}/hooks/profile-usage.sh\"; if [ -f \"$SCRIPT\" ]; then bash \"$SCRIPT\"; else exit 0; fi",
             "timeout": 5
           }
         ]
@@ -149,7 +164,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "MARKER_FILE='.work-state/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Chrome tools restricted to manual-qa agent only.'; echo ''; echo 'Main agent/EM must:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file, use Chrome tools, and report findings'; echo '3. Never use Chrome tools directly from main agent'; exit 2; fi",
+            "command": "MARKER_FILE='.work-state/.manual-qa-active'; AGENT=\"${CLAUDE_AGENT_TYPE:-${CLAUDE_SUBAGENT_TYPE:-${CLAUDE_AGENT_NAME:-}}}\"; case \"$AGENT\" in *manual-qa*) mkdir -p .work-state && touch \"$MARKER_FILE\" 2>/dev/null; exit 0;; esac; if [ -f \"$MARKER_FILE\" ]; then exit 0; fi; echo '🚫 BLOCK: MCP Chrome tools restricted to manual-qa agent only.' >&2; echo 'Launch manual-qa via Task tool (subagent_type=\"manual-qa\"); it auto-creates the marker and performs UI testing. Never call Chrome tools from the main agent.' >&2; exit 2",
             "timeout": 5
           }
         ]
@@ -159,7 +174,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "MARKER_FILE='.work-state/.manual-qa-active'; if [ ! -f \"$MARKER_FILE\" ]; then echo '🚫 BLOCK: MCP Mobile interaction tools restricted to manual-qa agent only.'; echo ''; echo 'Allowed without manual-qa (setup/info):'; echo '  list_devices, set_device, set_target, get_target, install_app,'; echo '  get_system_info, get_monitors, get_performance_metrics, clear_logs, wait'; echo ''; echo 'To use interaction tools:'; echo '1. Launch manual-qa agent via Task tool (subagent_type=\"manual-qa\")'; echo '2. manual-qa will create marker file and perform UI testing'; exit 2; fi",
+            "command": "MARKER_FILE='.work-state/.manual-qa-active'; AGENT=\"${CLAUDE_AGENT_TYPE:-${CLAUDE_SUBAGENT_TYPE:-${CLAUDE_AGENT_NAME:-}}}\"; case \"$AGENT\" in *manual-qa*) mkdir -p .work-state && touch \"$MARKER_FILE\" 2>/dev/null; exit 0;; esac; if [ -f \"$MARKER_FILE\" ]; then exit 0; fi; echo '🚫 BLOCK: MCP Mobile interaction tools restricted to manual-qa agent only.' >&2; echo 'Setup/info tools (list_devices, set_device, install_app, get_system_info, clear_logs, wait) do not need manual-qa. For interaction, launch manual-qa via Task tool (subagent_type=\"manual-qa\"); it auto-creates the marker.' >&2; exit 2",
             "timeout": 5
           }
         ]
@@ -202,6 +217,11 @@
           {
             "type": "command",
             "command": "echo '📝 Subagent finished. Update .work-state/team-state.md with phase results!'",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "rm -f .work-state/.manual-qa-active 2>/dev/null || true",
             "timeout": 5
           }
         ]
