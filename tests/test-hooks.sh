@@ -224,6 +224,17 @@ cmd=$(get_cmd_idx SessionStart 0)
 out=$(bash -c "$cmd"); ec=$?
 assert "SessionStart prints banner" 0 "Dream Team" "$ec" "$out"
 
+# PR-1: SessionStart also pre-creates .work-state/archive/ (for stale-state archiving)
+archcmd=$(jq -r '.hooks.SessionStart[0].hooks[1].command' "$HOOKS_FILE")
+sb=$(mktemp -d)
+run_in_sandbox "$sb" "$archcmd" >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ -d "$sb/.work-state/archive" ]; then
+  log_pass "SessionStart creates .work-state/archive/"
+else
+  log_fail "SessionStart creates .work-state/archive/" "ec=$ec dir=$( [ -d "$sb/.work-state/archive" ] && echo yes || echo no )"
+fi
+rm -rf "$sb"
+
 echo ""
 echo "=== PostToolUse Write|Edit (changes.log) ==="
 sb=$(mktemp -d)
@@ -417,6 +428,22 @@ out=$(run_in_sandbox "$sb" "$cmd"); ec=$?
 assert "chrome tool with marker → pass" 0 "" "$ec" "$out"
 rm -rf "$sb"
 
+# PR-1: manual-qa agent (env probe) with no marker → auto-create + allow
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:manual-qa"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "chrome tool as manual-qa → lazy auto-create marker + allow"
+else
+  log_fail "chrome tool as manual-qa → lazy auto-create marker + allow" "ec=$ec marker=$( [ -f "$sb/.work-state/.manual-qa-active" ] && echo yes || echo no )"
+fi
+rm -rf "$sb"
+
+# PR-1: non-manual-qa agent with no marker → still block (protection preserved)
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:developer-kotlin"); ec=$?
+assert "chrome tool as non-manual-qa → block" 2 "MCP Chrome tools restricted" "$ec" "$out"
+rm -rf "$sb"
+
 echo ""
 echo "=== PreToolUse mcp__mobile__* ==="
 cmd=$(get_cmd "PreToolUse" "mcp__mobile__(screenshot|get_ui|analyze_screen|tap|long_press|swipe|find_and_tap|tap_by_text|input_text|press_key|find_element|get_current_activity|launch_app|stop_app|shell|open_url|get_logs|launch_desktop_app|stop_desktop_app|get_window_info|focus_window|resize_window|get_clipboard|set_clipboard)")
@@ -430,6 +457,22 @@ sb=$(mktemp -d)
 mkdir -p "$sb/.work-state"; touch "$sb/.work-state/.manual-qa-active"
 out=$(run_in_sandbox "$sb" "$cmd"); ec=$?
 assert "mobile tool with marker → pass" 0 "" "$ec" "$out"
+rm -rf "$sb"
+
+# PR-1: manual-qa agent (env probe) with no marker → auto-create + allow
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:manual-qa"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "mobile tool as manual-qa → lazy auto-create marker + allow"
+else
+  log_fail "mobile tool as manual-qa → lazy auto-create marker + allow" "ec=$ec"
+fi
+rm -rf "$sb"
+
+# PR-1: non-manual-qa agent with no marker → still block
+sb=$(mktemp -d)
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_AGENT_TYPE="fullstack-team:developer-mobile"); ec=$?
+assert "mobile tool as non-manual-qa → block" 2 "MCP Mobile interaction tools restricted" "$ec" "$out"
 rm -rf "$sb"
 
 echo ""
@@ -459,6 +502,17 @@ echo "=== SubagentStop ==="
 cmd=$(get_cmd_idx SubagentStop 0)
 out=$(bash -c "$cmd"); ec=$?
 assert "SubagentStop prints reminder" 0 "Subagent finished" "$ec" "$out"
+
+# PR-1: SubagentStop cleans up the .manual-qa-active marker so it doesn't leak to the next agent
+clcmd=$(jq -r '.hooks.SubagentStop[0].hooks[1].command' "$HOOKS_FILE")
+sb=$(mktemp -d); mkdir -p "$sb/.work-state"; touch "$sb/.work-state/.manual-qa-active"
+run_in_sandbox "$sb" "$clcmd" >/dev/null 2>&1; ec=$?
+if [ "$ec" = "0" ] && [ ! -f "$sb/.work-state/.manual-qa-active" ]; then
+  log_pass "SubagentStop removes .manual-qa-active marker"
+else
+  log_fail "SubagentStop removes .manual-qa-active marker" "ec=$ec marker=$( [ -f "$sb/.work-state/.manual-qa-active" ] && echo present || echo gone )"
+fi
+rm -rf "$sb"
 
 echo ""
 echo "=== PreToolUse Task (validate-state.sh — P4/P5) ==="
@@ -621,6 +675,39 @@ assert "dod-gate override → allow" 0 "override present" "$ec" "$out"; rm -rf "
 sb=$(mktemp -d)
 out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
 assert "dod-gate no state → allow" 0 "" "$ec" "$out"; rm -rf "$sb"
+
+# PR-1: blocking messages go to STDERR (Stop-hook protocol: only stderr feeds Claude on exit 2)
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"summary"}'
+errout=$( (cd "$sb" && env CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x" bash -c "$cmd" 2>/tmp/dg_err.$$ 1>/dev/null); cat /tmp/dg_err.$$ ); rm -f /tmp/dg_err.$$
+echo "$errout" | grep -qF "BLOCK (DoD)" \
+  && log_pass "dod-gate BLOCK message on stderr" \
+  || log_fail "dod-gate BLOCK message on stderr" "not on stderr: '$errout'"
+rm -rf "$sb"
+
+# PR-1: unknown pause.kind → warn (never block), fall through
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation","pause":{"kind":"bogus"}}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+assert "dod-gate unknown pause.kind → warn+allow" 0 "unknown pause.kind" "$ec" "$out"; rm -rf "$sb"
+
+# PR-1: known pause.kind → no unknown-warning
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/x"},"stage_cursor":"implementation","pause":{"kind":"background_wait"}}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+if [ "$ec" = "0" ] && ! echo "$out" | grep -q "unknown pause.kind"; then
+  log_pass "dod-gate known pause.kind → no warn"
+else
+  log_fail "dod-gate known pause.kind → no warn" "ec=$ec out='$out'"
+fi
+rm -rf "$sb"
+
+# PR-1: branch mismatch → warn + archive stale state (mkdir first)
+sb=$(mktemp -d); mk_state "$sb" '{"classification":{"workflow":"full-feature","branch":"feat/OLD"},"stage_cursor":"summary"}'
+out=$(run_in_sandbox "$sb" "$cmd" CLAUDE_PLUGIN_ROOT="$REPO_ROOT" CURRENT_BRANCH="feat/x"); ec=$?
+if [ "$ec" = "0" ] && [ -f "$sb/.work-state/archive/team-state.json.feat-OLD.bak" ] && [ ! -f "$sb/.work-state/team-state.json" ]; then
+  log_pass "dod-gate branch mismatch → archives stale state"
+else
+  log_fail "dod-gate branch mismatch → archives stale state" "ec=$ec archived=$(ls "$sb/.work-state/archive" 2>/dev/null) out='$out'"
+fi
+rm -rf "$sb"
 
 echo ""
 echo "=== PreToolUse Write|Edit root-cause reminder (BUG_FIX §4) ==="

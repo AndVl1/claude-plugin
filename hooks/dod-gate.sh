@@ -51,11 +51,27 @@ PAUSE=$(jq -r '.pause.kind // "none"' "$STATE")
 CURSOR=$(jq -r '.stage_cursor // ""' "$STATE")
 STATE_BRANCH=$(jq -r '.branch // .classification.branch // ""' "$STATE")
 
+# pause.kind sanity: warn (never block) on a value outside the known whitelist, then fall
+# through to legacy handling below (an unknown kind is treated as a done-claim candidate).
+case "$PAUSE" in
+  none|background_wait|user_checkpoint|needs_human|failed|done) ;;
+  *) echo "⚠️  dod-gate: unknown pause.kind '$PAUSE' (expected none|background_wait|user_checkpoint|needs_human|failed|done) — treating as a done-claim." >&2 ;;
+esac
+
 # Staleness: state stamped with a branch that isn't the current one → leftover from another task.
+# Don't silently skip: warn (stderr, so the model sees it) and archive the stale state so it
+# stops shadowing the real one. Archive is best-effort — a failure never bricks the stop.
 if [ -n "$STATE_BRANCH" ]; then
   CUR="${CURRENT_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null)}"
   if [ -n "$CUR" ] && [ "$CUR" != "$STATE_BRANCH" ]; then
-    echo "ℹ️  dod-gate: team-state.json branch '$STATE_BRANCH' != current '$CUR' — stale state, DoD not enforced. Archive it: mv .work-state/team-state.json .work-state/archive/"
+    ARCHIVE_DIR="${DOD_ARCHIVE_DIR:-.work-state/archive}"
+    mkdir -p "$ARCHIVE_DIR" 2>/dev/null
+    DEST="$ARCHIVE_DIR/$(basename "$STATE").${STATE_BRANCH//\//-}.bak"
+    if mv "$STATE" "$DEST" 2>/dev/null; then
+      echo "⚠️  dod-gate: state branch '$STATE_BRANCH' != current '$CUR' — stale state archived to $DEST. DoD not enforced." >&2
+    else
+      echo "⚠️  dod-gate: state branch '$STATE_BRANCH' != current '$CUR' — stale state, DoD not enforced. Archive it manually: mkdir -p $ARCHIVE_DIR && mv $STATE $ARCHIVE_DIR/" >&2
+    fi
     exit 0
   fi
 fi
@@ -78,10 +94,10 @@ CLAIMING_DONE="no"
 
 # ── enforce DoD ─────────────────────────────────────────────────────────────────
 if [ ! -f "$DOD" ] || ! jq empty "$DOD" >/dev/null 2>&1; then
-  echo "🚫 BLOCK (DoD): task is claiming done but .work-state/artifacts/dod.json is missing or invalid."
-  echo "    Write the Definition of Done (acceptance criteria + verify_method per item, fixed during exploration/diagnose)."
-  echo "    To pause instead of finishing, set team-state.json .pause.kind to background_wait|user_checkpoint|needs_human|failed."
-  echo "    To override deliberately: touch .work-state/.dod-override"
+  echo "🚫 BLOCK (DoD): task is claiming done but .work-state/artifacts/dod.json is missing or invalid." >&2
+  echo "    Write the Definition of Done (acceptance criteria + verify_method per item, fixed during exploration/diagnose)." >&2
+  echo "    To pause instead of finishing, set team-state.json .pause.kind to background_wait|user_checkpoint|needs_human|failed." >&2
+  echo "    To override deliberately: touch .work-state/.dod-override" >&2
   exit 2
 fi
 
@@ -90,16 +106,16 @@ OPEN=$(jq -r '[.items[] | select((.status != "met") or ((.evidence // "") | leng
 TYPE_OK=$(jq -r '.type_requirements_met // false' "$DOD")
 
 if [ "$OPEN" != "0" ]; then
-  echo "🚫 BLOCK (DoD): $OPEN DoD item(s) are unmet or marked met without evidence."
-  echo "    Close each with proof: a screenshot WITH what is visible on it, a gist URL, test output, curl result, or a named root cause."
-  jq -r '.items[] | select((.status != "met") or ((.evidence // "") | length == 0)) | "      - [" + (.status // "pending") + "] " + .criterion + "  (verify: " + (.verify_method // "?") + ")"' "$DOD"
-  echo "    Genuinely blocked (no env, creds)? Set .pause.kind=needs_human, or: touch .work-state/.dod-override"
+  echo "🚫 BLOCK (DoD): $OPEN DoD item(s) are unmet or marked met without evidence." >&2
+  echo "    Close each with proof: a screenshot WITH what is visible on it, a gist URL, test output, curl result, or a named root cause." >&2
+  jq -r '.items[] | select((.status != "met") or ((.evidence // "") | length == 0)) | "      - [" + (.status // "pending") + "] " + .criterion + "  (verify: " + (.verify_method // "?") + ")"' "$DOD" >&2
+  echo "    Genuinely blocked (no env, creds)? Set .pause.kind=needs_human, or: touch .work-state/.dod-override" >&2
   exit 2
 fi
 
 if [ "$TYPE_OK" != "true" ]; then
-  echo "🚫 BLOCK (DoD): dod.type_requirements_met is not true — the per-task-type minimum criteria are not confirmed present (see workflows/artifacts-schema.json)."
-  echo "    e.g. BUG_FIX needs a named root cause + repro before/after; any UI needs 'what must be visible' recorded."
+  echo "🚫 BLOCK (DoD): dod.type_requirements_met is not true — the per-task-type minimum criteria are not confirmed present (see workflows/artifacts-schema.json)." >&2
+  echo "    e.g. BUG_FIX needs a named root cause + repro before/after; any UI needs 'what must be visible' recorded." >&2
   exit 2
 fi
 

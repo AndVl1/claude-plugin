@@ -19,9 +19,9 @@ CMD="${1:-${CLAUDE_COMMAND:-}}"
 [ -z "$CMD" ] && exit 0
 
 block() {
-  echo "🚫 BLOCK (safety-guard): $1"
-  echo "   Command: $CMD"
-  [ -n "${2:-}" ] && echo "   $2"
+  echo "🚫 BLOCK (safety-guard): $1" >&2
+  echo "   Command: $CMD" >&2
+  [ -n "${2:-}" ] && echo "   $2" >&2
   exit 2
 }
 

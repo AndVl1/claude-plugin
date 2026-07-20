@@ -42,6 +42,7 @@
     { "glob": ["**/*.kt", "**/*.java", "**/src/main/**"], "scope": "backend-kotlin", "dev_agent": "developer-kotlin" }
   ],
 
+  "_has_ui_note": "There is deliberately NO flags.has_ui here. has_ui is an interpreter built-in derived as (scope ∩ {frontend, mobile} ≠ ∅) and gates the manual_qa stage. A project MAY add flags.has_ui as a glob array to override the derivation (schema allows it via additionalProperties), but that creates a second source of truth — prefer the built-in.",
   "flags": {
     "has_security": ["**/auth/**", "**/security/**", "**/*crypto*", "**/*Secret*", "**/*Token*"],
     "has_infra": ["**/Dockerfile", "**/helm/**", "**/k8s/**", "**/.github/workflows/**"]

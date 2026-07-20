@@ -57,7 +57,7 @@ OVERRIDE=$(jq -r '.workflow_override // false' "$STATE")
 
 # ── P5: classification gate ─────────────────────────────────────────────────────
 if [ -z "$TYPE" ]; then
-  echo "🚫 BLOCK (P5): team-state.json has no classification.type. Classify the request and write the CLASSIFICATION block to state BEFORE launching agents."
+  echo "🚫 BLOCK (P5): team-state.json has no classification.type. Classify the request and write the CLASSIFICATION block to state BEFORE launching agents." >&2
   exit 2
 fi
 
@@ -88,8 +88,8 @@ expected_workflow() {
 EXPECTED=$(expected_workflow "$TYPE" "$COMPLEXITY" "$AUTONOMOUS")
 
 if [ "$OVERRIDE" != "true" ] && [ -n "$EXPECTED" ] && [ -n "$WORKFLOW" ] && [ "$WORKFLOW" != "$EXPECTED" ]; then
-  echo "🚫 BLOCK (P5): workflow '$WORKFLOW' does not match classification (type=$TYPE complexity=$COMPLEXITY autonomous=$AUTONOMOUS → expected '$EXPECTED')."
-  echo "    Fix the workflow in team-state.json, or set \"workflow_override\": true to override intentionally."
+  echo "🚫 BLOCK (P5): workflow '$WORKFLOW' does not match classification (type=$TYPE complexity=$COMPLEXITY autonomous=$AUTONOMOUS → expected '$EXPECTED')." >&2
+  echo "    Fix the workflow in team-state.json, or set \"workflow_override\": true to override intentionally." >&2
   exit 2
 fi
 
@@ -108,8 +108,8 @@ if [ "$HAS_STAGES" = "yes" ]; then
       end
   ' "$STATE")
   if [ "$VIOLATION" = "violation" ]; then
-    echo "🚫 BLOCK (P4): stage progress is not monotonic in team-state.json — a later stage is done/in_progress while an earlier stage is still pending."
-    echo "    Update stages[] to reflect reality (mark skipped stages 'skipped', not 'pending') before launching agents."
+    echo "🚫 BLOCK (P4): stage progress is not monotonic in team-state.json — a later stage is done/in_progress while an earlier stage is still pending." >&2
+    echo "    Update stages[] to reflect reality (mark skipped stages 'skipped', not 'pending') before launching agents." >&2
     exit 2
   fi
 fi

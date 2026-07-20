@@ -142,6 +142,14 @@ scope from file globs using the built-in defaults below:
 | `scope.has_infra` | touches Docker/K8s/CI/CD/Helm |
 | `${scope.dev_agent}` | `developer-kotlin` \| `developer-go` \| `frontend-developer` \| `developer-mobile` per dominant scope |
 
+> **`has_ui` is an interpreter built-in, not a config glob.** It is derived as
+> `scope.has_ui = (scope ∩ {frontend, mobile} ≠ ∅)` — no `flags.has_ui` entry is needed in
+> `team.config.json`, and the built-in defaults deliberately omit one. Adding a `flags.has_ui`
+> glob would create a second, divergent source of truth. A project that genuinely needs to
+> override the derivation *may* add `flags.has_ui` (the schema's free-form `additionalProperties`
+> accepts it), but the default behavior is the derived rule above. `has_ui` gates the `manual_qa`
+> stage (`skip_if: "!scope.has_ui"`).
+
 ## Custom agents (project / user / other plugins)
 
 A role resolves to a concrete agent via `.claude/team.config.json` `roles` (then the built-in
