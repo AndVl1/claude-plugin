@@ -152,7 +152,8 @@ scope from file globs using the built-in defaults below:
 >
 > **`has_runtime` gates the `manual_qa` stage** (`skip_if: "!scope.has_runtime"`) — so manual
 > runtime verification runs for backend/CLI work too, not only UI. **`has_ui` selects the *mode***
-> inside that stage: `ui` (drive Chrome/mobile) when `has_ui`, else `runtime` (run the app, hit
+> inside that stage: `ui` (drive agent-browser for web / mobile MCP for the app) when `has_ui`,
+> else `runtime` (run the app, hit
 > endpoints, read logs).
 
 ## Custom agents (project / user / other plugins)

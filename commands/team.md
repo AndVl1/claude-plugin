@@ -373,7 +373,7 @@ detect these, so treat this as a standing rule.
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
 | **qa** | Automated tests (encode manual_qa evidence) | sonnet | Phase 6.8 (`qa_tests`) |
-| **manual-qa** | UI testing on fixed code (Chrome/mobile MCP) | sonnet | Phase 6.7 (`manual_qa`) |
+| **manual-qa** | Runtime verification on fixed code (agent-browser / mobile MCP / run+curl+logs) | sonnet | Phase 6.7 (`manual_qa`) |
 | **code-reviewer** | Deep static quality review | opus | Phase 6 (`code_review`) |
 | **security-tester** | Security vulnerabilities | opus | Phase 6 (`code_review`, if has_security) |
 | **devops** | Infrastructure, deployment | sonnet | Phase 6 (`code_review`, if has_infra) |
@@ -485,7 +485,7 @@ code_review → review_fixes → manual_qa (skip_if !scope.has_runtime) → qa_t
 `code_review` is static only (no `qa`/`manual-qa`). `manual_qa` and `qa_tests` run *after* fixes
 so they exercise the shipping code. **`manual_qa` is not UI-only** — it is gated on
 `scope.has_runtime` (skipped only for pure docs/config), and `scope.has_ui` selects the *mode*:
-`ui` (drive Chrome/mobile) when there's a UI, else `runtime` (run the app, hit endpoints, read
+`ui` (drive agent-browser for web / mobile MCP for the app) when there's a UI, else `runtime` (run the app, hit endpoints, read
 logs). `lightweight` runs `code_review` (single code-reviewer) → `review_fixes` → `qa_tests` (no
 manual_qa for QUICK). `review`/`emergency` keep their existing `review` stage.
 
