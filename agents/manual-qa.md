@@ -479,3 +479,11 @@ If verdict is PASS:
 - [Specific areas for code-reviewer]
 - [Security aspects for security-tester]
 ```
+
+## DoD fan-in (source: manual_qa)
+
+In the `manual_qa` stage, contribute UI-visual acceptance criteria — including *what must be
+visible on the screenshot* — through the `manual_qa` artifact `dod_additions[]` (each with
+`source: "manual_qa"` and a unique `id`), which the orchestrator merges into `dod.json`. **Close**
+UI DoD items you verified, using the screenshot (and what is visible on it) as evidence. See
+`commands/team.md` § Multi-source fan-in.

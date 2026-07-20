@@ -57,3 +57,12 @@
 
 ---
 
+
+### DoD fan-in (source: exploration)
+
+Seed `.work-state/artifacts/dod.json` and **append** product-level criteria you own:
+- **analyst**: user flows, edge cases, UI-flow acceptance criteria.
+- **tech-researcher**: test-coverage criteria for the existing patterns you found.
+
+Each appended item gets `source: "exploration"` and a unique `id: "exploration-<n>"`. Bump
+`updated_at`. See `commands/team.md` § Multi-source fan-in.

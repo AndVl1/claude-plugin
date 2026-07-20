@@ -1,5 +1,22 @@
 # Changelog
 
+## 3.0.1 — Multi-source Definition of Done fan-in
+
+The DoD is no longer single-source. It is still seeded by exploration/discovery/diagnose, but
+every later role now contributes to the same `dod.json`.
+
+### Added
+- **`dod` schema fan-in fields**: items gained optional `id` (`<source>-<n>`) and `source`
+  (contributing stage); the object gained an optional `contributions` audit map
+  (`{<stage_id>: {added, closed, by}}`) and `updated_at`.
+- **APPEND / CLOSE convention** documented in `commands/team.md` (§ Multi-source fan-in) and in
+  each contributing stage file (`exploration`, `architecture`, `implementation`, `code_review`,
+  `qa_tests`, `manual_qa`) and agent (`analyst`/`tech-researcher` via exploration, `architect`,
+  `code-reviewer`, `qa`, `manual-qa`, and the four developers).
+  - APPEND: new criterion with `source` + unique `id`.
+  - CLOSE: flip an existing item `pending` → `met` with concrete evidence.
+  - One DoD-writing stage runs at a time (sequential) — no write races.
+
 ## 3.0.0 — Sequenced review pipeline (manual-qa on fixed code) — **BREAKING**
 
 Splits the single parallel `review` consilium (which mixed static review, `qa`, and

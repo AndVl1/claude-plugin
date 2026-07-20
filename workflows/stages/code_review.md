@@ -85,3 +85,10 @@ automated tests exercise the code that actually ships — not a pre-fix snapshot
 Autonomous: fix CRITICAL+HIGH, defer the rest, then re-derive the verdict.
 
 ---
+
+### DoD fan-in (source: code_review)
+
+**Append** regression and code-style acceptance criteria the review surfaced (e.g. "no N+1 on
+the list endpoint", "public API stays backward-compatible") to `.work-state/artifacts/dod.json`
+with `source: "code_review"` and `id: "code_review-<n>"`; bump `updated_at`. See
+`commands/team.md` § Multi-source fan-in.

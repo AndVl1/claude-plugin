@@ -345,3 +345,10 @@ Action items:
 ```
 
 **Be thorough but direct. List issues clearly with file:line when possible.**
+
+## DoD fan-in (source: qa_tests)
+
+In the `qa_tests` stage, **append** test-plan criteria (what the automated suite must cover) to
+`.work-state/artifacts/dod.json` with `source: "qa_tests"` and unique `id: "qa_tests-<n>"`, and
+**close** any DoD item your tests now prove (`status: "met"`, evidence = test output). Bump
+`updated_at`. See `commands/team.md` § Multi-source fan-in.

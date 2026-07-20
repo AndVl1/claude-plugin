@@ -55,3 +55,10 @@ verdict is treated as FAIL (never auto-pass).
 **Feeds**: `qa_tests` consumes `manual_qa.evidence`; `summary` consumes the verdict.
 
 ---
+
+### DoD fan-in (source: manual_qa)
+
+**Append** UI-visual acceptance criteria — including *what must be visible on the screenshot* —
+via the `manual_qa` artifact `dod_additions[]` (which the orchestrator merges into `dod.json`
+with `source: "manual_qa"`), and **close** UI items you verified with the screenshot as evidence.
+Bump `updated_at`. See `commands/team.md` § Multi-source fan-in.

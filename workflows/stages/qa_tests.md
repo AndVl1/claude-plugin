@@ -49,3 +49,9 @@ written directly against the implementation.
 **Feeds**: `summary` consumes `qa_tests`.
 
 ---
+
+### DoD fan-in (source: qa_tests)
+
+**Append** test-plan criteria — what the automated suite must cover — and **close** any DoD item
+your tests now prove (status `met`, evidence = test output). Use `source: "qa_tests"` and
+`id: "qa_tests-<n>"`; bump `updated_at`. See `commands/team.md` § Multi-source fan-in.

@@ -918,6 +918,45 @@ jq -e '[.stages[].id] | (index("qa_tests") and (index("manual_qa") | not))' "$LW
   || log_fail "lightweight pipeline" "qa_tests missing or manual_qa present"
 
 echo ""
+echo "=== multi-source DoD fan-in (PR-3) ==="
+# schema: dod gained contributions (audit map) + updated_at, items gained id + source
+jq -e '.definitions.dod.properties.contributions.type == "object"' "$SCHEMA" >/dev/null \
+  && log_pass "dod.contributions audit map in schema" \
+  || log_fail "dod.contributions" "missing"
+jq -e '.definitions.dod.properties.updated_at' "$SCHEMA" >/dev/null \
+  && log_pass "dod.updated_at in schema" \
+  || log_fail "dod.updated_at" "missing"
+jq -e '.definitions.dod.properties.items.items.properties | (.id and .source)' "$SCHEMA" >/dev/null \
+  && log_pass "dod item gained id + source (fan-in provenance)" \
+  || log_fail "dod item id/source" "missing"
+
+# ID uniqueness invariant a fan-in must preserve: [items[].id] | unique == items count
+sb=$(mktemp -d)
+cat > "$sb/dod.json" <<'EOF'
+{ "items": [
+  { "id": "exploration-1", "source": "exploration", "criterion": "login works", "verify_method": "manual-qa", "status": "pending" },
+  { "id": "architecture-1", "source": "architecture", "criterion": "p99 < 200ms", "verify_method": "load test", "status": "pending" },
+  { "id": "manual_qa-1", "source": "manual_qa", "criterion": "error banner visible", "verify_method": "screenshot", "status": "pending" }
+], "updated_at": "2026-07-21T00:00:00Z", "type_requirements_met": false }
+EOF
+uniq_ok=$(jq -r '([.items[].id] | unique | length) == (.items | length)' "$sb/dod.json")
+[ "$uniq_ok" = "true" ] && log_pass "fan-in DoD keeps item ids unique across sources" \
+  || log_fail "fan-in id uniqueness" "duplicate ids across sources"
+rm -rf "$sb"
+
+# stage files carry the append/close instruction
+faninmiss=0
+for s in exploration architecture implementation code_review qa_tests manual_qa; do
+  grep -qi "DoD fan-in" "$REPO_ROOT/workflows/stages/$s.md" || { log_fail "stages/$s.md DoD fan-in note" "missing"; faninmiss=$((faninmiss+1)); }
+done
+[ "$faninmiss" = "0" ] && log_pass "every fan-in stage file documents append/close"
+
+# team.md documents the fan-in convention
+grep -q "Multi-source fan-in" "$REPO_ROOT/commands/team.md" \
+  && log_pass "team.md documents Multi-source fan-in" \
+  || log_fail "team.md fan-in section" "missing"
+
+echo ""
 echo "=== Go scope wiring (bug #2) ==="
 CFG="$REPO_ROOT/workflows/team.config.example.json"
 jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \

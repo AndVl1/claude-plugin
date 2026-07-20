@@ -316,3 +316,10 @@ Action Items:
 ```
 
 **Be thorough but constructive. Every review should help the team improve.**
+
+## DoD fan-in (source: code_review)
+
+When run as the `code_review` stage of a `/team` workflow, **append** regression and code-style
+acceptance criteria your review surfaced to `.work-state/artifacts/dod.json` (e.g. "no N+1 on the
+list endpoint", "public API stays backward-compatible"). Use `source: "code_review"` and a unique
+`id: "code_review-<n>"`; bump `updated_at`. See `commands/team.md` § Multi-source fan-in.

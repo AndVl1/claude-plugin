@@ -299,6 +299,33 @@ Per-type minimum items (set `type_requirements_met: true` only when present):
 | **QA / report** | published via `publish-gist-report` skill; screenshots actually visible (not broken) |
 | **any UI** | the DoD records *what must be visible* on the screenshot; on close, *what is actually visible* is written |
 
+### Multi-source fan-in (append/close)
+
+The DoD is **not single-source**. The exploration/discovery/diagnose stage seeds it, but every
+later role with relevant context contributes to the same `dod.json`. There are two operations:
+
+- **APPEND** a new criterion you own. Give it `source: "<stage_id>"` and a unique
+  `id: "<stage_id>-<n>"` (e.g. `architecture-1`). Never renumber someone else's item.
+- **CLOSE** an existing item you just verified: flip `status` `pending` → `met` and write
+  `evidence`. Reference it by `id`.
+
+After any write, bump `updated_at` (ISO-8601) and, optionally, record what you did under
+`contributions.<stage_id>` (`{added:[ids], closed:[ids], by:[agent]}`) for the audit trail.
+
+| Stage | Agent | Contributes |
+|-------|-------|-------------|
+| `exploration` | analyst | product criteria: user flows, edge cases, UI-flow |
+| `exploration` | tech-researcher | test-coverage criteria for existing patterns |
+| `architecture` | architect | technical criteria: perf, API contract, failure modes |
+| `implementation` | developer | closes items it verified (compile, lint, smoke) with evidence |
+| `code_review` | code-reviewer | regression + code-style criteria |
+| `qa_tests` | qa | test-plan criteria (what automated tests must cover) |
+| `manual_qa` | manual-qa | UI-visual criteria + *what must be visible* on the screenshot |
+
+> **No write races.** The orchestrator runs one DoD-writing stage at a time (stages are
+> sequential; only *agents within one consilium* run in parallel, and a consilium's DoD authoring
+> is assigned to a single named role). Read → modify → write the whole file; do not interleave.
+
 ### Closing an item = proof, not a checkbox
 
 Set an item `status: "met"` only with non-empty `evidence`:

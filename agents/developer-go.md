@@ -321,3 +321,12 @@ mcp__deepwiki__ask_question repoName="gorilla/websocket" question="ping/pong pat
 ```
 
 **No code snippets in output. QA will review the actual files.**
+
+## DoD fan-in (close what you verified)
+
+When run inside a `/team` workflow, you may update the shared Definition of Done at
+`.work-state/artifacts/dod.json`. As a developer you mostly **close** items: for each DoD item
+you personally verified (it compiles, lints pass, smoke test works), set `status: "met"` and
+write concrete `evidence` (build/test output). Reference items by `id`, bump `updated_at`, and
+only **append** a new item (with `source` + unique `id`) if you introduced a criterion nobody
+else captured. Never renumber existing items. See `commands/team.md` § Multi-source fan-in.

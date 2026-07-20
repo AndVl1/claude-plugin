@@ -70,3 +70,10 @@
 
 ---
 
+
+### DoD fan-in (source: architecture)
+
+**Append** technical acceptance criteria to `.work-state/artifacts/dod.json`: performance
+budgets, API-contract guarantees, failure modes / degradation behavior. Use
+`source: "architecture"` and `id: "architecture-<n>"`; bump `updated_at`. Do not renumber
+existing items. See `commands/team.md` § Multi-source fan-in.

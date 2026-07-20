@@ -247,3 +247,10 @@ Table: environment_tag
 ```
 
 **Be precise. Developer and Frontend-Developer will follow your design exactly.**
+
+## DoD fan-in (source: architecture)
+
+When run as the `architecture` stage of a `/team` workflow, **append** technical acceptance
+criteria to `.work-state/artifacts/dod.json`: performance budgets, API-contract guarantees, and
+failure/degradation modes. Use `source: "architecture"` and a unique `id: "architecture-<n>"`;
+bump `updated_at`. Do not renumber existing items. See `commands/team.md` § Multi-source fan-in.
