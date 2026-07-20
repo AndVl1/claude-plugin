@@ -46,10 +46,19 @@
       }
     },
     {
+      "id": "qa_tests",
+      "title": "Automated Tests",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["debug", "implementation", "diagnosis"],
+      "gate": "verdict == PASS",
+      "produces": "qa_tests"
+    },
+    {
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "diagnosis", "debug", "dod"],
+      "consumes": ["implementation", "diagnosis", "debug", "qa_tests", "dod"],
       "gate": "dod_complete",
       "produces": "summary"
     }

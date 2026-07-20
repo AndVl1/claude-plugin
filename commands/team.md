@@ -345,11 +345,11 @@ detect these, so treat this as a standing rule.
 | **frontend-developer** | Web frontend — React/TS, Vue, Telegram Mini App, Kotlin/JS | sonnet | Phase 5 |
 | **developer-mobile** | KMP Mobile App (Compose Multiplatform) | sonnet | Phase 5 |
 | **init-mobile** | Creates new KMP project from scratch | sonnet | Phase 5 |
-| **qa** | Tests, code review | sonnet | Phase 6 |
-| **manual-qa** | UI testing via Chrome browser automation | sonnet | Phase 6 |
-| **code-reviewer** | Deep quality review | opus | Phase 6 |
-| **security-tester** | Security vulnerabilities | opus | Phase 6 |
-| **devops** | Infrastructure, deployment | sonnet | Phase 6 |
+| **qa** | Automated tests (encode manual_qa evidence) | sonnet | Phase 6.8 (`qa_tests`) |
+| **manual-qa** | UI testing on fixed code (Chrome/mobile MCP) | sonnet | Phase 6.7 (`manual_qa`) |
+| **code-reviewer** | Deep static quality review | opus | Phase 6 (`code_review`) |
+| **security-tester** | Security vulnerabilities | opus | Phase 6 (`code_review`, if has_security) |
+| **devops** | Infrastructure, deployment | sonnet | Phase 6 (`code_review`, if has_infra) |
 | **discovery** | Repository analysis (on demand) | sonnet | Phase 2 |
 
 ### Agent Specializations
@@ -437,9 +437,28 @@ prompts/criteria. This keeps the command lean and loads stage detail only when n
 | diagnose | `workflows/stages/diagnose.md` |
 | implementation | `workflows/stages/implementation.md` |
 | verify | `workflows/stages/verify.md` |
+| code_review | `workflows/stages/code_review.md` |
 | review | `workflows/stages/review.md` |
 | review_fixes | `workflows/stages/review_fixes.md` |
+| manual_qa | `workflows/stages/manual_qa.md` |
+| qa_tests | `workflows/stages/qa_tests.md` |
+| feature_spec | `workflows/stages/feature_spec.md` (artifact, produced during discovery) |
 | summary | `workflows/stages/summary.md` |
+
+**Sequenced review pipeline (v3.0).** `full-feature` and `standard` no longer run one parallel
+`review` consilium that mixes static and runtime checks. Review is now split into ordered stages:
+
+```
+code_review → review_fixes → manual_qa (skip_if !scope.has_ui) → qa_tests → summary
+(code-reviewer   (dev, numbered   (manual-qa,      (qa, encodes
+ + sec/devops     issue picker)    on fixed code)   observed behavior)
+ conditional)
+```
+
+`code_review` is static only (no `qa`/`manual-qa`). `manual_qa` and `qa_tests` run *after* fixes
+so they exercise the shipping code. `lightweight` runs `code_review` (single code-reviewer) →
+`review_fixes` → `qa_tests` (no manual_qa for QUICK). `review`/`emergency` keep their existing
+`review` stage.
 
 Alternative-workflow prose (standard / lightweight / emergency / research / review) is now
 encoded as profiles in `workflows/*.json` — nothing to read here for those.

@@ -22,19 +22,37 @@
       "produces": "implementation"
     },
     {
-      "id": "review",
-      "title": "Quick Review",
+      "id": "code_review",
+      "title": "Quick Code Review",
       "type": "single",
-      "role": "qa",
+      "role": "code-reviewer",
       "consumes": ["implementation"],
       "gate": "verdict != reject",
+      "checkpoint": "fix_decision",
+      "autonomous": "fix CRITICAL+HIGH, then continue",
       "produces": "review"
+    },
+    {
+      "id": "review_fixes",
+      "title": "Review Fixes",
+      "type": "single",
+      "role": "${scope.dev_agent}",
+      "consumes": ["review"],
+      "skip_if": "review.findings == []"
+    },
+    {
+      "id": "qa_tests",
+      "title": "Automated Tests",
+      "type": "single",
+      "role": "qa",
+      "consumes": ["implementation", "review"],
+      "produces": "qa_tests"
     },
     {
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "review", "dod"],
+      "consumes": ["implementation", "review", "qa_tests", "dod"],
       "gate": "dod_complete",
       "produces": "summary"
     }

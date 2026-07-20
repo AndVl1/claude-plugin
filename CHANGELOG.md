@@ -1,5 +1,74 @@
 # Changelog
 
+## 3.0.0 — Sequenced review pipeline (manual-qa on fixed code) — **BREAKING**
+
+Splits the single parallel `review` consilium (which mixed static review, `qa`, and
+`manual-qa` all at once, against pre-fix code) into an ordered pipeline so manual QA and
+automated tests exercise the code that actually ships:
+
+```
+code_review → review_fixes → manual_qa (skip_if !has_ui) → qa_tests → summary
+```
+
+### Added
+- **`code_review` stage** — static review only: `code-reviewer` (+ `security-tester` when
+  `scope.has_security`, + `devops` when `scope.has_infra`). No `qa`/`manual-qa`. Produces the
+  `review` artifact with the same normalized verdict. File: `workflows/stages/code_review.md`.
+- **`manual_qa` stage** — single `manual-qa`, `skip_if: "!scope.has_ui"`, runs **after**
+  `review_fixes` on the fixed code. Produces the new **`manual_qa`** artifact
+  (`verdict` PASS/FAIL, `evidence[]`, `dod_additions[]`, `regressions[]`). Gate:
+  `manual_qa.verdict != FAIL`. File: `workflows/stages/manual_qa.md`.
+- **`qa_tests` stage** — single `qa`, runs **after** `manual_qa`, consumes `manual_qa.evidence`
+  and encodes the observed behavior as automated regression tests. Produces the new
+  **`qa_tests`** artifact. Gate: `manual_qa.verdict == PASS || !scope.has_ui`. File:
+  `workflows/stages/qa_tests.md`.
+- **`feature_spec` artifact** (optional, 8 sections) — the `discovery` stage of `full-feature`
+  may produce it; `manual-qa` consumes `acceptance_criteria` as its checklist. Schema +
+  `workflows/stages/feature_spec.md`.
+- **Numbered-issue picker** in `review_fixes` (`fix_selection` checkpoint) — `AskUserQuestion`
+  multi-select over numbered findings; default preselect = CRITICAL+HIGH.
+- Schema definitions: `manual_qa`, `qa_tests`, `feature_spec` in
+  `workflows/artifacts-schema.json`.
+
+### Changed
+- **`full-feature.json`, `standard.json`, `lightweight.json`, `bug-fix.json`,
+  `debug-cycle.json`** rewired to the sequenced pipeline. `standard` gained the `has_infra`
+  conditional (parity with `full-feature`). `bug-fix` gained a `manual_qa` stage (skip if no
+  UI); `debug-cycle` gained `qa_tests` before summary.
+- `agents/manual-qa.md` now produces the `manual_qa` artifact (was a string field in `debug`);
+  `agents/qa.md` now owns `qa_tests` and consumes `manual_qa.evidence`.
+- `commands/team.md`: STAGE REFERENCE + agent table updated for the new stages.
+
+### Breaking / migration
+- Projects on v2.4.x with **custom `workflows/*.json` profiles** that reference a single
+  `review` stage must migrate to the new stage ids. `review`/`emergency` profiles are
+  unchanged (they keep a `review` stage). For the feature/bug profiles, replace the old
+  `review` consilium with `code_review` and add `manual_qa` + `qa_tests`. Codemod sketch:
+  ```sh
+  # In feature/standard/lightweight profiles: rename the static review stage id.
+  jq '(.stages[] | select(.id=="review")).id = "code_review"' profile.json
+  # Then hand-add manual_qa (skip_if !scope.has_ui) and qa_tests stages before summary,
+  # and drop qa/manual-qa from the code_review consilium roles. See the shipped profiles.
+  ```
+- Any tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact instead.
+
+## 2.4.2 — Hook block messages to stderr + routing hardening
+
+### Changed
+- **All blocking hook messages now go to stderr.** Per the Claude Code Stop/PreToolUse
+  protocol, `exit 2` feeds only **stderr** back to Claude; stdout on a block was silently
+  dropped. Fixed in `dod-gate.sh`, `safety-guard.sh`, `validate-state.sh`, and the inline
+  chrome/mobile guards in `hooks.json`.
+- **Stale-state handling in `dod-gate.sh`**: on a branch mismatch it now warns (stderr) and
+  **archives** the stale state to `.work-state/archive/` (created first) instead of silently
+  skipping. `pause.kind` is validated against a whitelist (warn, never block).
+- **`.manual-qa-active` marker is lazy-created** for the manual-qa agent (PreToolUse env probe
+  on `CLAUDE_AGENT_TYPE`); non-manual-qa callers are still blocked. `SubagentStop` cleans the
+  marker up so it can't leak to the next agent. `SessionStart` pre-creates
+  `.work-state/archive/`.
+- Documented `has_ui` as an interpreter built-in (`scope ∩ {frontend, mobile}`), not a config
+  glob, in `workflows/README.md` and `team.config.example.json`.
+
 ## 2.4.1 — Work-state per-feature subdirs + coordinator/ memory + identity rename
 
 Hoists the orchestrator's per-task state out of `.work-state/`'s root into per-feature

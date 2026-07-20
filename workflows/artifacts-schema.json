@@ -128,6 +128,61 @@
         "pr_url": { "type": ["string", "null"] }
       }
     },
+    "manual_qa": {
+      "type": "object",
+      "description": "Manual UI QA verdict, produced by the manual-qa agent AFTER review_fixes — it exercises the code that will actually ship, not a pre-fix snapshot. Sequenced (not run in parallel with code_review) for exactly that reason. Consumed by qa_tests (evidence → automated regression tests) and by summary. Replaces the old string field inside `debug`.",
+      "required": ["verdict", "evidence"],
+      "properties": {
+        "verdict": { "enum": ["PASS", "FAIL"], "description": "PASS only if every acceptance criterion was observed working. A missing/unknown verdict is treated as FAIL — it never auto-passes." },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Concrete observations: screenshot path + WHAT IS VISIBLE on it, console/network state, exact steps performed. A bare 'looks good' is not evidence."
+        },
+        "dod_additions": {
+          "type": "array",
+          "description": "UI/visual acceptance criteria manual-qa appends back to dod.json (see multi-source DoD fan-in). Each item uses the dod item shape.",
+          "items": {
+            "type": "object",
+            "required": ["criterion", "verify_method", "status"],
+            "properties": {
+              "criterion": { "type": "string" },
+              "verify_method": { "type": "string" },
+              "status": { "enum": ["pending", "met"] },
+              "evidence": { "type": "string" },
+              "source": { "type": "string", "description": "Contributing stage id, e.g. manual_qa." }
+            }
+          }
+        },
+        "regressions": { "type": "array", "items": { "type": "string" }, "description": "Pre-existing behavior that broke during testing — empty array if none." }
+      }
+    },
+    "qa_tests": {
+      "type": "object",
+      "description": "Automated tests written by the qa agent AFTER manual_qa, encoding the manually-observed behavior (manual_qa.evidence) as durable regression tests. Only accepted when manual_qa.verdict == PASS, or when the task has no UI (!scope.has_ui) so manual_qa was skipped.",
+      "required": ["tests_added", "build_status"],
+      "properties": {
+        "tests_added": { "type": "array", "items": { "type": "string" }, "description": "Test files/cases added or updated." },
+        "build_status": { "enum": ["pass", "fail", "n/a"] },
+        "coverage_note": { "type": "string" },
+        "based_on_manual_qa": { "type": "boolean", "description": "true when the tests encode manual_qa observations (has_ui path)." }
+      }
+    },
+    "feature_spec": {
+      "type": "object",
+      "description": "Optional slim feature specification — 8 sections distilled from a 15-section template. The discovery stage of a FEATURE workflow MAY produce it when the task warrants a written contract; it is not mandatory. Consumed by architecture and by manual-qa (acceptance_criteria becomes the manual test checklist). Gate-able via feature_spec_present when a project wants to require it.",
+      "required": ["goal", "scope", "acceptance_criteria"],
+      "properties": {
+        "goal": { "type": "string", "description": "One-paragraph statement of what and why." },
+        "scope": { "type": "array", "items": { "type": "string" }, "description": "What is in scope." },
+        "anti_scope": { "type": "array", "items": { "type": "string" }, "description": "Explicitly out of scope — the boundary." },
+        "api_contract": { "type": "object", "description": "DTOs/endpoints/signatures the feature exposes." },
+        "acceptance_criteria": { "type": "array", "items": { "type": "string" }, "description": "Observable pass/fail criteria; manual-qa consumes these directly as its checklist." },
+        "testing_strategy": { "type": "string", "description": "How the feature will be tested (manual + automated)." },
+        "risks": { "type": "array", "items": { "type": "string" } },
+        "decisions": { "type": "array", "items": { "type": "string" }, "description": "ADR-lite: decision + rationale pairs." }
+      }
+    },
     "dod": {
       "type": "object",
       "description": "Definition of Done — acceptance criteria fixed BEFORE code, each with how it is verified and (when closed) the proof. Produced early (clarify/discovery/diagnose), consumed by review/summary. The dod_complete gate and the Stop backstop (hooks/dod-gate.sh) require every item met WITH evidence before a task may claim done.",

@@ -41,10 +41,20 @@
       "produces": "review"
     },
     {
+      "id": "manual_qa",
+      "title": "Manual QA (fixed code)",
+      "type": "single",
+      "role": "manual-qa",
+      "consumes": ["review", "implementation", "diagnosis"],
+      "skip_if": "!scope.has_ui",
+      "gate": "manual_qa.verdict != FAIL",
+      "produces": "manual_qa"
+    },
+    {
       "id": "summary",
       "title": "Summary",
       "type": "orchestrator",
-      "consumes": ["implementation", "diagnosis", "review", "dod"],
+      "consumes": ["implementation", "diagnosis", "review", "manual_qa", "dod"],
       "gate": "dod_complete",
       "produces": "summary"
     }

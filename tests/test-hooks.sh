@@ -866,6 +866,58 @@ jq -e '.definitions.review.required | index("verdict")' "$REPO_ROOT/workflows/ar
   || log_fail "review artifact verdict" "verdict not required in schema"
 
 echo ""
+echo "=== sequenced review pipeline (v3.0 — PR-2) ==="
+SCHEMA="$REPO_ROOT/workflows/artifacts-schema.json"
+FF="$REPO_ROOT/workflows/full-feature.json"
+ST="$REPO_ROOT/workflows/standard.json"
+LW="$REPO_ROOT/workflows/lightweight.json"
+
+# new artifact schema definitions exist with their required fields
+jq -e '.definitions.manual_qa.required | (index("verdict") and index("evidence"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa artifact schema present (verdict+evidence required)" \
+  || log_fail "manual_qa schema" "missing or wrong required set"
+jq -e '.definitions.manual_qa.properties.verdict.enum | (index("PASS") and index("FAIL"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa.verdict enum = PASS|FAIL" \
+  || log_fail "manual_qa.verdict enum" "not PASS|FAIL"
+jq -e '.definitions.qa_tests.required | index("tests_added")' "$SCHEMA" >/dev/null \
+  && log_pass "qa_tests artifact schema present" \
+  || log_fail "qa_tests schema" "missing"
+jq -e '.definitions.feature_spec.required | (index("goal") and index("acceptance_criteria"))' "$SCHEMA" >/dev/null \
+  && log_pass "feature_spec artifact schema present" \
+  || log_fail "feature_spec schema" "missing"
+
+# full-feature: code_review → review_fixes → manual_qa → qa_tests → summary, in order
+order=$(jq -r '[.stages[].id] | join(",")' "$FF")
+case "$order" in
+  *code_review,review_fixes,manual_qa,qa_tests,summary) log_pass "full-feature ends with the sequenced pipeline order" ;;
+  *) log_fail "full-feature pipeline order" "got: $order" ;;
+esac
+# code_review is static: roles must NOT contain qa or manual-qa
+jq -e '[.stages[] | select(.id=="code_review") | .roles[]] | (index("qa") or index("manual-qa")) | not' "$FF" >/dev/null \
+  && log_pass "full-feature code_review excludes qa/manual-qa (static only)" \
+  || log_fail "code_review static" "code_review still bundles qa/manual-qa"
+# manual_qa gated on has_ui
+jq -e '.stages[] | select(.id=="manual_qa") | .skip_if == "!scope.has_ui"' "$FF" >/dev/null \
+  && log_pass "full-feature manual_qa skip_if !scope.has_ui" \
+  || log_fail "manual_qa skip_if" "wrong or missing"
+jq -e '.stages[] | select(.id=="manual_qa") | .produces == "manual_qa"' "$FF" >/dev/null \
+  && log_pass "manual_qa stage produces manual_qa artifact" \
+  || log_fail "manual_qa produces" "wrong"
+jq -e '.stages[] | select(.id=="qa_tests") | .produces == "qa_tests"' "$FF" >/dev/null \
+  && log_pass "qa_tests stage produces qa_tests artifact" \
+  || log_fail "qa_tests produces" "wrong"
+
+# standard has_infra conditional parity with full-feature
+jq -e '[.stages[] | select(.id=="code_review") | .conditional[].if] | index("scope.has_infra")' "$ST" >/dev/null \
+  && log_pass "standard code_review has has_infra conditional (parity with full-feature)" \
+  || log_fail "standard has_infra parity" "missing has_infra conditional"
+
+# lightweight: has qa_tests, NO manual_qa (QUICK skips manual QA)
+jq -e '[.stages[].id] | (index("qa_tests") and (index("manual_qa") | not))' "$LW" >/dev/null \
+  && log_pass "lightweight has qa_tests but no manual_qa (QUICK)" \
+  || log_fail "lightweight pipeline" "qa_tests missing or manual_qa present"
+
+echo ""
 echo "=== Go scope wiring (bug #2) ==="
 CFG="$REPO_ROOT/workflows/team.config.example.json"
 jq -e '.scope_map[] | select(.scope == "go") | .dev_agent == "developer-go"' "$CFG" >/dev/null \

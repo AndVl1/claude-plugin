@@ -10,7 +10,18 @@
 
 **Goal**: Fix issues identified in Phase 6 using specialized developer agents
 
-**When to Run**: User selected (A) or (B) in Phase 6 checkpoint
+**When to Run**: There are findings in the `review` artifact (skipped when `review.findings == []`).
+
+**Numbered-issue picker (checkpoint `fix_selection`).** Present the findings from `code_review`
+as a numbered list and let the user choose which to fix, via `AskUserQuestion` **multi-select**:
+
+- One option per finding, labeled `#N — <title> (SEVERITY, file:line)`.
+- **Default preselection: all CRITICAL + HIGH findings.** MEDIUM is opt-in.
+- The user can pick any subset ("fix 1, 3, 5"); unpicked findings are deferred and listed in
+  the summary as known-deferred (not silently dropped).
+- **Autonomous mode:** skip the prompt — fix CRITICAL+HIGH, defer the rest, record the deferral.
+
+Only the selected findings are handed to the fix agents below.
 
 **CRITICAL: Do NOT fix issues yourself. Delegate to specialized agents.**
 
@@ -132,10 +143,10 @@ Mobile (developer-mobile agent):
 - Files: [list]
 - Build: PASS
 
-All issues addressed. Proceeding to Phase 7.
+All issues addressed. Proceeding to manual QA (has_ui) or automated tests.
 ```
 
-**Checkpoint**: Proceed to Phase 7
+**Checkpoint**: Proceed to `manual_qa` (skipped when `!scope.has_ui`), then `qa_tests`.
 
 ---
 
