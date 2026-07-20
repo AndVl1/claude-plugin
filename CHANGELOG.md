@@ -12,16 +12,19 @@ at once, against pre-fix code) into an ordered pipeline so manual QA and automat
 the code that actually ships:
 
 ```
-code_review → review_fixes → manual_qa (skip_if !has_ui) → qa_tests → summary
+code_review → review_fixes → manual_qa (skip_if !has_runtime) → qa_tests → summary
 ```
 
 - **`code_review`** — static only: `code-reviewer` (+ `security-tester` if `scope.has_security`,
   + `devops` if `scope.has_infra`). No `qa`/`manual-qa`. Produces `review`.
-- **`manual_qa`** — single `manual-qa`, `skip_if !scope.has_ui`, runs **after** `review_fixes` on
-  the fixed code. New `manual_qa` artifact (`verdict` PASS/FAIL, `evidence[]`, `dod_additions[]`,
-  `regressions[]`). Gate `manual_qa.verdict != FAIL`.
+- **`manual_qa`** — single `manual-qa`, `skip_if !scope.has_runtime`, runs **after** `review_fixes`
+  on the fixed code. **Not UI-only** — `scope.has_runtime` gates it (skipped only for pure
+  docs/config) and `scope.has_ui` selects the *mode*: `ui` (drive Chrome/mobile) else `runtime`
+  (run the app, hit endpoints, read logs). New `manual_qa` artifact (`verdict` PASS/FAIL, `mode`,
+  `evidence[]`, `dod_additions[]`, `regressions[]`). Gate `manual_qa.verdict != FAIL`.
 - **`qa_tests`** — single `qa`, runs **after** `manual_qa`, encodes `manual_qa.evidence` into
-  automated regression tests. New `qa_tests` artifact. Gate `manual_qa.verdict == PASS || !has_ui`.
+  automated regression tests. New `qa_tests` artifact. Gate
+  `manual_qa.verdict == PASS || !has_runtime`.
 - **`feature_spec`** artifact (optional, 8 sections) — `full-feature` discovery may produce it;
   `manual-qa` consumes `acceptance_criteria`.
 - Numbered-issue picker in `review_fixes` (`fix_selection`), default preselect CRITICAL+HIGH.
@@ -35,7 +38,7 @@ migrate. `review`/`emergency` unchanged. For feature/bug profiles, replace the `
 with `code_review` and add `manual_qa` + `qa_tests` before `summary`:
 ```sh
 jq '(.stages[] | select(.id=="review")).id = "code_review"' profile.json
-# then hand-add manual_qa (skip_if !scope.has_ui) + qa_tests; drop qa/manual-qa from code_review.
+# then hand-add manual_qa (skip_if !scope.has_runtime) + qa_tests; drop qa/manual-qa from code_review.
 ```
 Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact instead.
 
@@ -55,7 +58,8 @@ Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact inste
 - `.manual-qa-active` marker **lazy-created** for the manual-qa agent (PreToolUse env probe on
   `CLAUDE_AGENT_TYPE`); non-manual-qa callers still blocked; `SubagentStop` cleans it up;
   `SessionStart` pre-creates `.work-state/archive/`.
-- `has_ui` documented as an interpreter built-in (`scope ∩ {frontend, mobile}`), not a config glob.
+- `has_ui` / `has_runtime` documented as interpreter built-ins (not config globs). `has_runtime`
+  gates `manual_qa`; `has_ui` selects the mode (ui vs runtime) within it.
 
 ### Coordinator + autonomous yolo loop
 - **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous

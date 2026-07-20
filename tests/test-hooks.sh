@@ -896,10 +896,18 @@ esac
 jq -e '[.stages[] | select(.id=="code_review") | .roles[]] | (index("qa") or index("manual-qa")) | not' "$FF" >/dev/null \
   && log_pass "full-feature code_review excludes qa/manual-qa (static only)" \
   || log_fail "code_review static" "code_review still bundles qa/manual-qa"
-# manual_qa gated on has_ui
-jq -e '.stages[] | select(.id=="manual_qa") | .skip_if == "!scope.has_ui"' "$FF" >/dev/null \
-  && log_pass "full-feature manual_qa skip_if !scope.has_ui" \
-  || log_fail "manual_qa skip_if" "wrong or missing"
+# manual_qa gated on has_runtime (not has_ui) — runs for backend/CLI too; has_ui only selects mode
+jq -e '.stages[] | select(.id=="manual_qa") | .skip_if == "!scope.has_runtime"' "$FF" >/dev/null \
+  && log_pass "full-feature manual_qa skip_if !scope.has_runtime (not has_ui)" \
+  || log_fail "manual_qa skip_if" "expected !scope.has_runtime"
+# manual_qa artifact records mode (ui|runtime)
+jq -e '.definitions.manual_qa.properties.mode.enum | (index("ui") and index("runtime"))' "$SCHEMA" >/dev/null \
+  && log_pass "manual_qa artifact has ui|runtime mode" \
+  || log_fail "manual_qa mode" "missing ui|runtime enum"
+# has_runtime documented as a built-in flag
+grep -q "has_runtime" "$REPO_ROOT/workflows/README.md" \
+  && log_pass "workflows/README documents has_runtime built-in" \
+  || log_fail "has_runtime doc" "missing in workflows/README.md"
 jq -e '.stages[] | select(.id=="manual_qa") | .produces == "manual_qa"' "$FF" >/dev/null \
   && log_pass "manual_qa stage produces manual_qa artifact" \
   || log_fail "manual_qa produces" "wrong"

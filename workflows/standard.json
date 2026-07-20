@@ -83,7 +83,7 @@
       "type": "single",
       "role": "manual-qa",
       "consumes": ["review", "implementation", "architecture"],
-      "skip_if": "!scope.has_ui",
+      "skip_if": "!scope.has_runtime",
       "gate": "manual_qa.verdict != FAIL",
       "produces": "manual_qa"
     },
@@ -93,7 +93,7 @@
       "type": "single",
       "role": "qa",
       "consumes": ["manual_qa", "implementation", "architecture"],
-      "gate": "manual_qa.verdict == PASS || !scope.has_ui",
+      "gate": "manual_qa.verdict == PASS || !scope.has_runtime",
       "produces": "qa_tests"
     },
     {

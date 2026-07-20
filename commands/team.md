@@ -476,16 +476,18 @@ prompts/criteria. This keeps the command lean and loads stage detail only when n
 `review` consilium that mixes static and runtime checks. Review is now split into ordered stages:
 
 ```
-code_review → review_fixes → manual_qa (skip_if !scope.has_ui) → qa_tests → summary
-(code-reviewer   (dev, numbered   (manual-qa,      (qa, encodes
- + sec/devops     issue picker)    on fixed code)   observed behavior)
- conditional)
+code_review → review_fixes → manual_qa (skip_if !scope.has_runtime) → qa_tests → summary
+(code-reviewer   (dev, numbered   (manual-qa, on fixed  (qa, encodes
+ + sec/devops     issue picker)    code; ui OR runtime   observed behavior)
+ conditional)                      mode)
 ```
 
 `code_review` is static only (no `qa`/`manual-qa`). `manual_qa` and `qa_tests` run *after* fixes
-so they exercise the shipping code. `lightweight` runs `code_review` (single code-reviewer) →
-`review_fixes` → `qa_tests` (no manual_qa for QUICK). `review`/`emergency` keep their existing
-`review` stage.
+so they exercise the shipping code. **`manual_qa` is not UI-only** — it is gated on
+`scope.has_runtime` (skipped only for pure docs/config), and `scope.has_ui` selects the *mode*:
+`ui` (drive Chrome/mobile) when there's a UI, else `runtime` (run the app, hit endpoints, read
+logs). `lightweight` runs `code_review` (single code-reviewer) → `review_fixes` → `qa_tests` (no
+manual_qa for QUICK). `review`/`emergency` keep their existing `review` stage.
 
 Alternative-workflow prose (standard / lightweight / emergency / research / review) is now
 encoded as profiles in `workflows/*.json` — nothing to read here for those.

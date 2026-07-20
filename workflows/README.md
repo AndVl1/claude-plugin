@@ -139,16 +139,21 @@ scope from file globs using the built-in defaults below:
 |------|-----------|
 | `scope.has_security` | touches `**/auth/**`, `**/security/**`, `**/*crypto*`, or auth/secret logic |
 | `scope.has_ui` | scope includes `frontend` or `mobile` |
+| `scope.has_runtime` | the change produces something runnable (any code scope) — false only for pure docs/config/research |
 | `scope.has_infra` | touches Docker/K8s/CI/CD/Helm |
 | `${scope.dev_agent}` | `developer-kotlin` \| `developer-go` \| `frontend-developer` \| `developer-mobile` per dominant scope |
 
-> **`has_ui` is an interpreter built-in, not a config glob.** It is derived as
-> `scope.has_ui = (scope ∩ {frontend, mobile} ≠ ∅)` — no `flags.has_ui` entry is needed in
-> `team.config.json`, and the built-in defaults deliberately omit one. Adding a `flags.has_ui`
-> glob would create a second, divergent source of truth. A project that genuinely needs to
-> override the derivation *may* add `flags.has_ui` (the schema's free-form `additionalProperties`
-> accepts it), but the default behavior is the derived rule above. `has_ui` gates the `manual_qa`
-> stage (`skip_if: "!scope.has_ui"`).
+> **`has_ui` and `has_runtime` are interpreter built-ins, not config globs.**
+> `scope.has_ui = (scope ∩ {frontend, mobile} ≠ ∅)`. `scope.has_runtime = the task touches any
+> executable/deployable code scope` (true for backend, go, frontend, mobile, devops, …; false only
+> for docs/config-only changes). No `flags.*` entries are needed and the built-in defaults omit
+> them. A project that must override *may* add `flags.has_ui` / `flags.has_runtime` (the schema's
+> free-form `additionalProperties` accepts them), but the derived rules are the default.
+>
+> **`has_runtime` gates the `manual_qa` stage** (`skip_if: "!scope.has_runtime"`) — so manual
+> runtime verification runs for backend/CLI work too, not only UI. **`has_ui` selects the *mode***
+> inside that stage: `ui` (drive Chrome/mobile) when `has_ui`, else `runtime` (run the app, hit
+> endpoints, read logs).
 
 ## Custom agents (project / user / other plugins)
 
