@@ -63,11 +63,13 @@ Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact inste
   gates `manual_qa`; `has_ui` selects the mode (ui vs runtime) within it.
 
 ### Coordinator + autonomous yolo loop
-- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
-  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
-  rollup + new-profile proposals).
-- **Agents**: `coordinator` (opus, read-only, green) and `coordinator-yolo` (opus, autonomous,
-  red — dedicated `yolo/*` branch, atomic commits, hard rails, never pushes/merges, DoD enforced).
+- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous night
+  loop), `/coordinator-stats` (profile-usage rollup + new-profile proposals).
+- **Agents**: `coordinator` (opus, read-only, green) is an **overseer above `/team`** — it proposes
+  what `/team` to run and never executes or absorbs a feature. `coordinator-yolo` (opus, red) is the
+  one autonomous exception: driven by `/loop <interval>`, **each tick handles a single task by
+  running the regular `/team`** on a `yolo/*` branch (atomic commits, rollback on red, never
+  pushes/merges, DoD enforced) — it is a dispatcher, not a whole-feature swallower.
 - **Skills**: `coordinator`, `coordinator-yolo`, `coordinator-yolo-stop`, `coordinator-stats`,
   `vision-bootstrap`.
 - **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL activation line per launch

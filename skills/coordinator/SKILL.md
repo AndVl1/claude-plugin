@@ -5,7 +5,9 @@ description: Read-only project pulse. Scan work-state, queue, git, and coordinat
 
 # Coordinator — Pulse (read-only)
 
-Take the project's pulse without changing anything.
+Take the project's pulse without changing anything. The coordinator is an **overseer above
+`/team`**: it observes, catches drift, and **proposes what `/team` to run next** — it never
+executes and is never the agent `/team` hands work to.
 
 ## Procedure
 
