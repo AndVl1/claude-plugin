@@ -47,6 +47,15 @@ trigger by hand. Cadence is the `/loop` interval; one tick = one task.
 - Each task runs the normal `/team` — DoD still applies (autonomous skips *checkpoints*, not *QA*).
 - No `AskUserQuestion` (user is away); never pushes / merges / `gh pr merge`.
 
+## Concurrent with an active `/team`
+
+You can start `/team-yolo` **while a feature is in flight**. The tick first **stall-detects**: if
+another branch is actively moving, `team-state.json` is mid-stage, or there are open PRs / unfinished
+e2e, the tick **does nothing** for that interval — the loop is a poll, not a hammer. So it catches
+the moments when an agent stops (checkpoint wait, needs-human, agent crash, abandoned sub-task)
+and picks them up on the next tick. The yolo branch is separate from the working branch, and the
+loop never pushes — concurrency is safe by construction.
+
 ## Stopping
 
 Run **`/coordinator-yolo-stop`** (or say "stop yolo") to halt the `/loop` and get the report.

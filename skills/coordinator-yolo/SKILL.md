@@ -13,6 +13,11 @@ yolo branch off main, no questions.
 **Not a whole-feature swallow.** The coordinator is an overseer, not the doer. Per tick it takes
 **one** task and runs the normal `/team` on it. Cadence is the `/loop` interval.
 
+**Safe to run alongside an active `/team` feature.** The tick first checks whether the project is
+actively moving on something else (active branch / active state / open PR / unfinished e2e) and
+only picks a task in a quiet area — so it catches the moments when an agent stops (checkpoint wait,
+needs-human, crash, abandoned sub-task) instead of racing the in-flight work.
+
 ## Argument
 
 `$ARGUMENTS` — pulse interval (`10m`, `15m`, `30m`). Empty → `10m`.

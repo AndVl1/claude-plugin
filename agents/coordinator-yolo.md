@@ -51,17 +51,31 @@ Each `/loop` invocation does exactly this and then returns:
 
 1. **Load memory.** Re-read `vision.md`, `backlog.md`, `yolo-log.md` (what's already done this
    session), `decisions.md`.
-2. **Pick ONE task.** Rank `backlog.md` by contribution to `vision.md` goals; take the single
+2. **Stall-detect before picking.** A tick must NOT race with active `/team` work. Scan for an
+   in-progress feature (active branch other than `yolo/*` with recent commits, active
+   `team-state.json` not at `summary`/done, open PRs without review, e2e scenarios with `[ ]`
+   steps) — and **only pick a task whose target area is quiet** (no open branch + no active
+   state). If the project is actively moving on something else and nothing is stalled, return
+   without picking — the loop is a poll, not a hammer.
+3. **Pick ONE task.** Rank `backlog.md` by contribution to `vision.md` goals; take the single
    highest-leverage item. Backlog empty → derive one candidate from goals/gaps and pick it (no
    questions).
-3. **Run the regular `/team` on that one task** in autonomous mode. `/team` classifies it, walks
+4. **Run the regular `/team` on that one task** in autonomous mode. `/team` classifies it, walks
    its stages, and delegates to the worker agents — you don't do the coding yourself.
-4. **Validate.** build + tests.
+5. **Validate.** build + tests.
    - Green → `git add -A && git commit -m "yolo: <what> (<goal>)"`. Log to `yolo-log.md`:
      task · why · files · ✅.
    - Red → roll the task back to the last green, log `❌ <reason>`, do NOT commit.
-5. **Return.** Do not start another task — the next tick will. If the backlog is exhausted and no
+6. **Return.** Do not start another task — the next tick will. If the backlog is exhausted and no
    candidate can be derived, write a note and signal the loop can stop.
+
+## Running alongside an active `/team`
+
+This loop is safe to run **concurrently with an in-flight `/team` feature**: ticks only consume the
+`yolo/*` branch, never touch the working branch, and never push. The stall-detect step keeps it
+from piling on top of work that's already moving. So you can start `/team-yolo` mid-feature and
+let it catch the moments when an agent stops (checkpoint wait, needs-human, agent crash, abandoned
+sub-task) — and the next tick picks it up.
 
 ## Stopping
 
