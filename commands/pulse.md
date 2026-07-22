@@ -8,6 +8,9 @@ argument-hint: (no args; reads .work-state/ and coordinator memory)
 Launch the **`coordinator`** agent (read-only) to take the project's pulse: where things stand,
 what's blocked, what's drifting from the vision, and what to do next.
 
+The coordinator sits **above** `/team` — it observes and **proposes what `/team` to run**; it never
+executes and is never the agent `/team` delegates a feature to.
+
 ## What it does
 
 1. Delegates to the `coordinator` agent via the Task tool (`subagent_type: coordinator`).

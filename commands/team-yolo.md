@@ -1,35 +1,61 @@
 ---
-description: Start an autonomous yolo loop - coordinator-yolo picks tasks, runs /team, verifies, atomic-commits on a yolo branch, rolls back on red
-argument-hint: [max iterations, default 5] [optional focus]
+description: Start the autonomous night loop - each /loop tick runs coordinator-yolo for ONE task through the regular /team, on an isolated yolo branch, rollback on red. Never main, never push.
+argument-hint: [pulse interval, e.g. 10m — default 10m]
 ---
 
-# Team Yolo — Autonomous Loop (explicit opt-in)
+# Team Yolo — Autonomous Night Loop (explicit opt-in)
 
-Starts the **`coordinator-yolo`** executor: an unattended loop that drives the project forward
-without per-step checkpoints — on a throwaway branch, committing atomically, rolling back on red.
+Starts the coordinator's autonomous mode: an interval loop where **each tick handles exactly one
+task by running the regular `/team` pipeline** (autonomous), on a throwaway branch, committing
+atomically and rolling back on red.
 
-> ⚠️ **High autonomy, real blast radius.** This runs code changes and commits without asking at
-> each step. Only start it when you mean it. It still cannot push, merge, or touch main.
+> ⚠️ **High autonomy, sandboxed blast radius.** Runs code changes + commits without asking. Only
+> start it when you mean it. It cannot push, merge, or touch main.
+
+## Not a whole-feature swallow
+
+The coordinator is an **overseer**, not the doer. It does **not** absorb a feature and implement it
+inline. Per tick it picks **one** highest-leverage task from the vision/backlog and runs the normal
+`/team` on that single task — the same deterministic classification → stages → DoD flow you'd
+trigger by hand. Cadence is the `/loop` interval; one tick = one task.
 
 ## What it does
 
-1. Confirms opt-in and the iteration cap (`$1`, default **5**) and optional focus (`$2`).
-2. Delegates to the `coordinator-yolo` agent (`subagent_type: coordinator-yolo`), which:
-   - creates/switches to a `yolo/<slug>-<date>` branch (never main/production),
-   - loops: **pick task → `/team` (autonomous) → verify (build+tests+DoD) → atomic commit**;
-     on red, fix once then `git reset --hard`/`revert` to the last green,
-   - logs each iteration to `.work-state/coordinator/<slug>/yolo-log.md`,
-   - stops at the cap, an empty queue, or an escalation (needs-human / repeated red / ambiguity),
-   - optionally opens a **draft** PR at the end. Merging stays with you.
+1. **Confirm opt-in** and the pulse interval (`$1`, default **10m**).
+2. **Preconditions** (else do NOT start): `coordinator/<slug>/vision.md` exists (run `/pulse` /
+   vision-bootstrap first if not); `git status --short` is clean; build + test commands are known.
+3. **Cut the branch:**
+   ```bash
+   SLUG=$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")
+   TS=$(date +%Y%m%d-%H%M)
+   git checkout main && git checkout -b "yolo/$SLUG-$TS"
+   ```
+4. **Start the interval loop** — each tick delegates ONE task to the `coordinator-yolo` agent,
+   which runs the regular `/team` for it, validates, and commits or rolls back:
+   ```
+   /loop <interval> Task(subagent_type: "coordinator-yolo",
+     prompt: "one autonomous yolo tick in branch yolo/<slug>-<ts>: pick the single
+              highest-leverage task from vision/backlog, run the regular /team on it
+              (autonomous), validate build+tests, commit to the yolo branch or roll back")
+   ```
+5. **Tell the user**: mode started, branch name, interval, how to stop (`/coordinator-yolo-stop`).
 
-## Safety rails (enforced)
+## Rails (enforced)
 
-- Dedicated `yolo/*` branch only; the branch-guard hooks block commits/push to main/production.
-- Atomic commits = rollback checkpoints; the branch is never left broken.
-- DoD still applies — autonomous skips *checkpoints*, not *QA*. The Stop DoD gate still guards.
-- Never pushes / merges / `gh pr merge`.
+- yolo `yolo/*` branch only; the branch-guard hooks block commits/push to main/production.
+- One task per tick; atomic commits = rollback checkpoints; never leave a red tree.
+- Each task runs the normal `/team` — DoD still applies (autonomous skips *checkpoints*, not *QA*).
+- No `AskUserQuestion` (user is away); never pushes / merges / `gh pr merge`.
+
+## Concurrent with an active `/team`
+
+You can start `/team-yolo` **while a feature is in flight**. The tick first **stall-detects**: if
+another branch is actively moving, `team-state.json` is mid-stage, or there are open PRs / unfinished
+e2e, the tick **does nothing** for that interval — the loop is a poll, not a hammer. So it catches
+the moments when an agent stops (checkpoint wait, needs-human, agent crash, abandoned sub-task)
+and picks them up on the next tick. The yolo branch is separate from the working branch, and the
+loop never pushes — concurrency is safe by construction.
 
 ## Stopping
 
-Run the **coordinator-yolo-stop** skill (or say "stop yolo") to halt early. On halt the executor
-writes a final `yolo-log.md` summary and hands back.
+Run **`/coordinator-yolo-stop`** (or say "stop yolo") to halt the `/loop` and get the report.

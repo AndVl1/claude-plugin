@@ -63,11 +63,18 @@ Tooling reading `debug.manual_qa_log` should read the `manual_qa` artifact inste
   gates `manual_qa`; `has_ui` selects the mode (ui vs runtime) within it.
 
 ### Coordinator + autonomous yolo loop
-- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous
-  pick→`/team`→verify→atomic-commit loop, rollback on red), `/coordinator-stats` (profile-usage
-  rollup + new-profile proposals).
-- **Agents**: `coordinator` (opus, read-only, green) and `coordinator-yolo` (opus, autonomous,
-  red — dedicated `yolo/*` branch, atomic commits, hard rails, never pushes/merges, DoD enforced).
+- **Commands**: `/pulse` (read-only digest + next-action menu), `/team-yolo` (autonomous loop),
+  `/coordinator-stats` (profile-usage rollup + new-profile proposals).
+- **Agents**: `coordinator` (opus, read-only, green) is an **overseer above `/team`** — it proposes
+  what `/team` to run and never executes or absorbs a feature. `coordinator-yolo` (opus, red) is the
+  one autonomous exception: driven by `/loop <interval>`, **each tick handles a single task by
+  running the regular `/team`** on a `yolo/*` branch (atomic commits, rollback on red, never
+  pushes/merges, DoD enforced) — it is a dispatcher, not a whole-feature swallower.
+- **Concurrent with active `/team`**: yolo tick first stall-detects (active branch / mid-stage
+  state / open PRs / unfinished e2e) and **does nothing** for the interval if the project is
+  actively moving. So `/team-yolo` can run alongside an in-flight feature and catch the moments
+  when an agent stops (checkpoint wait, needs-human, crash, abandoned sub-task) instead of racing
+  the in-flight work. Sandbox (yolo-only, no push) makes concurrency safe by construction.
 - **Skills**: `coordinator`, `coordinator-yolo`, `coordinator-yolo-stop`, `coordinator-stats`,
   `vision-bootstrap`.
 - **`hooks/profile-usage.sh`** (PostToolUse Task) — appends one JSONL activation line per launch
