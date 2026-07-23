@@ -1,5 +1,43 @@
 # Changelog
 
+## 3.0.1 — manual_qa = runtime verification, coordinator is overseer (not whole-feature swallower)
+
+Refines the 3.0.0 release on two axes the smoke caught: `manual_qa` was still effectively UI-only
+(backend got no manual runtime check), and `coordinator-yolo` was absorbing a whole feature instead
+of dispatching one task per tick. Both fixed.
+
+### Changed
+- **`manual_qa` is runtime, not UI-only.** Gate changed from `!scope.has_ui` → `!scope.has_runtime`
+  (built-in: true for any code scope, false only for pure docs/config). `scope.has_ui` now selects
+  the *mode* inside the stage: `ui` (drive agent-browser / claude-in-mobile) when `has_ui`, else
+  `runtime` (run app, hit endpoints, read logs). Backend/CLI tasks now get a manual runtime pass
+  instead of being skipped.
+- **`manual_qa` artifact** gained `mode` (ui|runtime); `evidence[]` covers command + response +
+  log lines (not only screenshots).
+- **manual-qa agent is CLI-only now.** Removed all `mcp__claude-in-chrome__*` and `mcp__mobile__*`
+  entries from its `tools:`. Web → `agent-browser` CLI; Mobile → `claude-in-mobile` CLI;
+  backend/CLI → run + curl + logs. Re-frontend description + skill table updated to match.
+
+### Fixed
+- **`coordinator` is an overseer above `/team`, not the agent `/team` delegates to.** Its menu
+  items are concrete `/team …` runs; it never executes and never absorbs a feature. Gained `Task`
+  for read-only analysis delegation (Explore); still no Write/Edit on project code.
+- **`coordinator-yolo` no longer "runs `/team` as a monolith".** Driven by `/loop <interval>`,
+  **each tick handles a single task by running the regular `/team`** (autonomous) on a `yolo/*`
+  branch, atomic commit or rollback, then returns. The next task is the next tick — the loop is
+  a poll, not an internal drain of the backlog.
+- **`/team-yolo` safe to run alongside an active `/team` feature.** Tick first stall-detects
+  (active branch / mid-stage state / open PRs / unfinished e2e) and does nothing for the interval
+  if the project is actively moving — so it catches the moments when an agent stops (checkpoint
+  wait, needs-human, crash, abandoned sub-task). Sandbox (yolo branch only, no push) makes
+  concurrency safe by construction.
+
+### Migration
+- Same profile schema as 3.0.0; only the gate expression changed (`!has_ui` → `!has_runtime`).
+  Existing custom profiles keep working as long as you don't re-pin the old literal.
+- The MCP-guard hooks for chrome/mobile remain (harmless fallback; block stray MCP use by other
+  agents). manual-qa itself no longer relies on them.
+
 ## 3.0.0 — Sequenced review pipeline, DoD fan-in, coordinator loop — **BREAKING**
 
 One release covering the plugin overhaul: the review pipeline is resequenced (breaking), the

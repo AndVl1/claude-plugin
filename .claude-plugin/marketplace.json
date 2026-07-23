@@ -12,12 +12,21 @@
       "name": "fullstack-team",
       "source": "./",
       "description": "Fullstack development plugin with 15 specialized agents for Kotlin/Spring, Go, React, KMP Mobile, Telegram Bots, DevOps, and AI integration",
-      "version": "2.4.0",
+      "version": "3.0.1",
       "author": {
         "name": "AndVl1"
       },
       "category": "development",
-      "tags": ["agents", "multi-agent", "team", "kotlin", "spring", "go", "react", "kmp"]
+      "tags": [
+        "agents",
+        "multi-agent",
+        "team",
+        "kotlin",
+        "spring",
+        "go",
+        "react",
+        "kmp"
+      ]
     },
     {
       "name": "vision-analyze",
@@ -32,7 +41,14 @@
         "name": "AndVl1"
       },
       "category": "tooling",
-      "tags": ["vision", "screenshot", "llama-cpp", "vlm", "qa", "rust"]
+      "tags": [
+        "vision",
+        "screenshot",
+        "llama-cpp",
+        "vlm",
+        "qa",
+        "rust"
+      ]
     }
   ]
 }
